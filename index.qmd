@@ -116,7 +116,7 @@ The HadCRUT5 dataset is now saved here [`HadCRUT5_global_monthly_average.csv`](d
 
 ## GISTEMP {#sec-GISTEMP}
 
-The GISTEMP dataset is a global monthly average temperature dataset[@GISTEMP]. It is available in CSV format from [the NASA GISS website](https://data.giss.nasa.gov/gistemp/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
+The GISTEMP dataset is a global monthly average temperature dataset [@GISTEMP]. It is available in CSV format from [the NASA GISS website](https://data.giss.nasa.gov/gistemp/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
 
 Note that the GISTEMP data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function defined above. Moreover, the GISTEMP data starts in 1880. The temperature anomalies are calculated relative to the 1850-1900 baseline, where data before 1880 which is not available is ignored in the calculations.
 
@@ -188,7 +188,7 @@ The NOAAGlobalTemp dataset is now saved here [`NOAA_global_monthly_average.csv`]
 
 ## Berkeley Earth {#sec-BerkeleyEarth}
 
-The Berkeley Earth dataset is a global monthly average temperature dataset[@BerkeleyEarth]. It is available in CSV format from [the Berkeley Earth website](https://berkeleyearth.org/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
+The Berkeley Earth dataset is a global monthly average temperature dataset [@BerkeleyEarth]. It is available in CSV format from [the Berkeley Earth website](https://berkeleyearth.org/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
 
 ```{julia}
 #| warning: false
