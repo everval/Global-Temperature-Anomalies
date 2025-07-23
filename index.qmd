@@ -11,12 +11,12 @@ author:
         department: Department of Mathematical Sciences
         country: Denmark
       - name: CoRE
-        department: "Center for Research in Energy: Economics and Markets
+        department: "Center for Research in Energy: Economics and Markets"
         country: Denmark
     orcid: 0000-0002-0337-8055
     corresponding: true
 abstract: |
-  This notebook downloads and compiles the data used in the article "[Breaching 1.5°C: Give me the odds](https://everval.github.io/Odds-of-breaching-1.5C/)" by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
+  This notebook downloads and compiles the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
 keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ONI, El Niño, La Niña]
 execute:
   engine: julia
@@ -191,6 +191,8 @@ The NOAAGlobalTemp dataset is now saved here [`NOAA_global_monthly_average.csv`]
 The Berkeley Earth dataset is a global monthly average temperature dataset[@BerkeleyEarth]. It is available in CSV format from [the Berkeley Earth website](https://berkeleyearth.org/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
 
 ```{julia}
+#| warning: false
+
 # Download the Berkeley Earth temperature data
 # URL of the Berkeley Earth global monthly average CSV
 burl = "https://storage.googleapis.com/berkeley-earth-temperature-hr/global/Global_TAVG_monthly.txt"
