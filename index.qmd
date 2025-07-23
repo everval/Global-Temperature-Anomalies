@@ -1,0 +1,471 @@
+---
+title: Global Temperature Anomalies
+subtitle: Data compilation 
+date: today
+author:
+  - name: J. Eduardo Vera-Valdés
+    email: eduardo@math.aau.dk
+    url: https://everval.github.io
+    affiliations:
+      - name: Aalborg University
+        department: Department of Mathematical Sciences
+        country: Denmark
+    orcid: 0000-0002-0337-8055
+    corresponding: true
+abstract: |
+  This notebook downloads and compiles the data used in the article "[Breaching 1.5°C: Give me the odds](https://everval.github.io/Odds-of-breaching-1.5C/)" by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ONI datasets. The code is written in [`Julia`](https://julialang.org/). At the end of the notebook, the data is stored in a single CSV file, which contains the temperature anomalies for each dataset, as well as the ONI data. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
+keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ONI, El Niño, La Niña]
+execute:
+  engine: julia
+  freeze: auto
+  cache: true
+bibliography: library.bib
+---
+
+## Introduction
+
+This notebook downloads the data used in the article "Breaching 1.5°C: Give me the odds" by @vera-valdés2024. It contains the code used to download the data from the [HadCRUT5](#sec-HadCRUT5), [GISTEMP](#sec-GISTEMP), [NOAAGlobalTemp](#sec-NOAAGlobalTemp), [Berkeley Earth](#sec-BerkeleyEarth), and [ONI](#sec-ONI) datasets. 
+
+
+The notebook shows the code so that you can easily use whichever dataset you want. The data is downloaded in CSV format and directly accessible from the notebook. Each CSV file contains three columns: `Date`, `RawTemperature`, and `Temp`. The `Date` column contains the date of the temperature anomaly in months, the `RawTemperature` column contains the raw temperature anomaly according to the dataset, and the `Temp` column contains the temperature anomaly relative to the preindustrial level. The preindustrial level is defined as the average temperature anomaly from 1850 to 1900. The `Temp` column is calculated by subtracting the preindustrial level from the `RawTemperature` column. The ONI dataset contains two columns: `Date` and `Anom`, where `Anom` is the ONI anomaly.
+
+
+The code is written in `Julia` and is organized into sections that correspond to the different datasets. Each section downloads the data, processes it, and saves it in a CSV file. The data is then merged into [a single dataset](#sec-merge-all-datasets) that contains the temperature anomalies for each dataset, as well as the ONI data. Finally, the notebook includes code to [plot the data](#sec-plot-data) and [highlight El Niño and La Niña events](#sec-Adding-ONI).
+
+## Load Packages and Functions
+
+We have to load the necessary packages before running the code. We will use the `Dates`, `CSV`, `DataFrames`,`HTTP`, and `Statistics` packages to download and process the data. `Statistics` is part of the Julia standard library, so it is already installed. The other packages are not part of the standard library, so you need to install them if you haven't done so already. You can install them using the `Pkg` package as follows: 
+
+```julia
+# Install necessary packages
+# This code installs the packages if they are not already installed.
+
+using Pkg
+Pkg.add(["Plots", "Dates", "CSV", "DataFrames", "HTTP"])
+```
+
+Once the packages are installed, we can load them using the `using` keyword. The `Plots` package is used for plotting the data, so it is not strictly necessary to load it if you are only downloading and processing the data.
+
+```{julia}
+#| warning: false
+#| output: false
+
+# Load necessary packages
+
+using Pkg
+Pkg.activate(pwd())
+using Dates, CSV, DataFrames, HTTP, Statistics
+```
+
+By default, `GISTEMP` data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function.
+
+```{julia}
+# Function to convert wide format data to long format
+
+function longseries(data)
+    height = size(data, 1) # Number of rows, equivalent to the number of years
+    last_row = 12 - count(ismissing, data[end, 2:13]) # Number of non-missing months in the last year
+
+    many = (height - 1) * 12 + last_row # Total number of months in the long format
+    long = zeros(many, 1) # Long format array
+
+    for ii = 1:(height-1) # Loop through all years except the last one
+        for jj = 1:12 # Loop through all months
+            long[(ii-1)*12+jj] = data[ii, jj+1]
+        end
+    end
+
+    for jj = 1:last_row # Loop through the last year
+        long[(height-1)*12+jj] = data[height, jj+1]
+    end
+
+    return long
+end
+```
+
+## HadCRUT5 {#sec-HadCRUT5}
+
+The HadCRUT5 dataset is a global monthly average temperature dataset compiled by the Met Office Hadley Centre and the Climatic Research Unit at the University of East Anglia [@HadCRUT5]. It is one of the most widely used datasets for global temperature anomalies. The HadCRUT5 dataset is available in CSV format from the [Met Office website](https://www.metoffice.gov.uk/hadobs/hadcrut5/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
+
+```{julia}
+# Download the HadCRUT temperature data 
+# URL of the HadCRUT5 global monthly average CSV
+hurl = "https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.0.2.0/analysis/diagnostics/HadCRUT.5.0.2.0.analysis.summary_series.global.monthly.csv"
+# Local filename to save
+hfilename = "data/HadCRUT5_global_monthly_average.csv"
+open(hfilename, "w") do io
+    write(io, HTTP.get(hurl).body)
+end
+
+rawhadcrut = CSV.read(hfilename, DataFrame)
+rename!(rawhadcrut, :Time => :Date)
+rename!(rawhadcrut, :"Anomaly (deg C)" => :RawTemperature)
+
+hadcrut = rawhadcrut[!, [:Date, :RawTemperature]]
+
+oldbase = mean(hadcrut[(hadcrut.Date.>=Date(1850, 1, 1)).&(hadcrut.Date.<Date(1900, 1, 1)), :RawTemperature])
+hadcrut[!, :Temp] = hadcrut[!, :RawTemperature] .- oldbase;
+
+CSV.write(hfilename, hadcrut)
+```
+
+The HadCRUT5 dataset is now saved here [`HadCRUT5_global_monthly_average.csv`](data/HadCRUT5_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
+
+## GISTEMP {#sec-GISTEMP}
+
+The GISTEMP dataset is a global monthly average temperature dataset[@GISTEMP]. It is available in CSV format from [the NASA GISS website](https://data.giss.nasa.gov/gistemp/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
+
+Note that the GISTEMP data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function defined above. Moreover, the GISTEMP data starts in 1880. The temperature anomalies are calculated relative to the 1850-1900 baseline, where data before 1880 which is not available is ignored in the calculations.
+
+```{julia}
+# Download the GISTEMP temperature data 
+# URL of the GISTEMP global monthly average CSV
+gurl = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts%2BdSST.csv"
+# Local filename to save
+gfilename = "data/GISTEMP_global_monthly_average.csv"
+# Download the file
+
+open(gfilename, "w") do io
+    write(io, HTTP.get(gurl).body)
+end
+
+longgistemp = CSV.read(gfilename, DataFrame, header=2, missingstring=["***"])
+gistemp = longseries(longgistemp)[:]
+Tt = length(gistemp) - 1
+
+start = Date(1880, 1, 1) # Start date of the dataset
+fin = start + Month(Tt) # End date of the dataset
+fechas = collect(start:Month(1):fin) # Create a Date array
+
+gistemp = DataFrame(:Date=>fechas, :RawTemp=>gistemp)
+
+oldbase = mean(gistemp[(gistemp.Date.>=Date(1850, 1, 1)).&(gistemp.Date.<Date(1900, 1, 1)), :RawTemp])
+gistemp[!, :Temp] = gistemp[!, :RawTemp] .- oldbase
+
+CSV.write(gfilename, gistemp)
+```
+
+The GISTEMP dataset is now saved here [`GISTEMP_global_monthly_average.csv`](data/GISTEMP_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
+
+## NOAAGlobalTemp {#sec-NOAAGlobalTemp}
+
+The NOAAGlobalTemp dataset is a global monthly average temperature dataset compiled by the National Oceanic and Atmospheric Administration (NOAA) [@NOAAGlobalTemp]. It is available in CSV format from the [NOAA NCEI website](https://www.ncei.noaa.gov/products/land-based-station/noaa-global-temp). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
+
+```{julia}
+# Download the NOAAGlobalTemp temperature data 
+# URL of the NOAAGlobalTemp global monthly average CSV
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.0.0.202506.asc"
+# Local filename to save
+nfilename = "data/NOAA_global_monthly_average.csv"
+
+# Download the file
+open(nfilename, "w") do io
+    write(io, HTTP.get(nurl).body)
+end
+
+lines = readlines(nfilename)
+cleaned_lines = [join(split(strip(line)), ",") for line in lines]
+
+# Write to file
+write(nfilename, join(cleaned_lines, "\n"))
+
+rawnoaa = CSV.read(nfilename, DataFrame; delim=',', header=0)
+
+fechas = Date.(rawnoaa.Column1, rawnoaa.Column2, 1) # Create Date column from Column1 and Column2
+
+noaa = DataFrame(:Date=>fechas, :RawTemp=>rawnoaa.Column3)
+
+oldbase = mean(noaa[(noaa.Date.>=Date(1850, 1, 1)).&(noaa.Date.<Date(1900, 1, 1)), :RawTemp])
+noaa[!, :Temp] = noaa[!, :RawTemp] .- oldbase
+
+CSV.write(nfilename, noaa)
+```
+
+The NOAAGlobalTemp dataset is now saved here [`NOAA_global_monthly_average.csv`](data/NOAA_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
+
+## Berkeley Earth {#sec-BerkeleyEarth}
+
+The Berkeley Earth dataset is a global monthly average temperature dataset[@BerkeleyEarth]. It is available in CSV format from [the Berkeley Earth website](https://berkeleyearth.org/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
+
+```{julia}
+# Download the Berkeley Earth temperature data
+# URL of the Berkeley Earth global monthly average CSV
+burl = "https://storage.googleapis.com/berkeley-earth-temperature-hr/global/Global_TAVG_monthly.txt"
+# Local filename to save
+bfilename = "data/BerkeleyEarth_global_monthly_average.csv"
+# Download the file
+open(bfilename, "w") do io
+    write(io, HTTP.get(burl).body)
+end
+
+rawtemp = CSV.read(bfilename, DataFrame, comment="%", delim=" ", ignorerepeated=true)
+
+
+colnames = [:Year, :Month, :Anomaly_Monthly, :Unc_Monthly,
+            :Anomaly_Annual, :Unc_Annual, :Anomaly_5yr, :Unc_5yr,
+            :Anomaly_10yr, :Unc_10yr, :Anomaly_20yr, :Unc_20yr]
+rename!(rawtemp, colnames)
+
+rawtemp.Date = Date.(rawtemp.Year, rawtemp.Month, 1) # Create Date column from Year and Month
+rename!(rawtemp, :Anomaly_Monthly => :RawTemperature)
+
+berkeley = rawtemp[!, [:Date, :RawTemperature]]
+
+oldbase = mean(rawtemp[(rawtemp.Date.>=Date(1850, 1, 1)).&(rawtemp.Date.<Date(1900, 1, 1)), :RawTemperature])
+rawtemp[!, :Temp] = rawtemp[!, :RawTemperature] .- oldbase
+
+berkeley.Temp = rawtemp.Temp
+
+CSV.write(bfilename, berkeley)
+```
+
+The Berkeley Earth dataset is now saved here [`BerkeleyEarth_global_monthly_average.csv`](data/BerkeleyEarth_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
+
+## Oceanic Niño Index (ONI) {#sec-ONI}
+
+El Niño (La Niña) is a phenomenon in the equatorial Pacific Ocean characterized by a five consecutive 3-month running mean of sea surface temperature (SST) anomalies in the Niño 3.4 region that is above (below) the threshold of +0.5°C (-0.5°C). To keep the data frequency consistent, we will use the same monthly time resolution as the other datasets; hence using the SST directly. 
+
+The SST data is obtained from the Extended Reconstructed Sea Surface Temperature (ERSST) dataset, which is a global monthly analysis of SST data derived from the International Comprehensive Ocean–Atmosphere Dataset (ICOADS) [@SST_Part1; @SST_Part2]. The ONI data is available in CSV format from [the NOAA Climate Monitoring website](https://www.ncei.noaa.gov/access/monitoring/enso/sst). The code below downloads the data, processes it, and saves it in a CSV file.
+
+```{julia}
+# Download the ONI data
+ourl = "https://www.cpc.ncep.noaa.gov/data/indices/sstoi.indices"
+ofilename = "data/Nino_data.csv"
+
+open(ofilename, "w") do io
+    write(io, HTTP.get(ourl).body)
+end
+
+lines = readlines(ofilename)
+cleaned_lines = [join(split(strip(line)), ",") for line in lines]
+
+# Write to file
+write(ofilename, join(cleaned_lines, "\n"))
+
+rawoni = CSV.read(ofilename, DataFrame; delim=',', header=1)
+fechas = Date.(rawoni.YR, rawoni.MON, 1) # Create Date column from YR and MON
+
+oni = DataFrame(Date=fechas, Anom=rawoni[!, :ANOM_3])
+
+CSV.write(ofilename, oni)
+```
+
+The ONI dataset is now saved here [`Nino_data.csv`](data/Nino_data.csv). The data contains the date and the ONI anomalies.
+
+## Merge all datasets {#sec-merge-all-datasets}
+
+The code below merges all the datasets into a single dataset. It uses the `leftjoin` function to merge the datasets on the `Date` column. The resulting dataset contains the temperature anomalies for each dataset, as well as the ONI data. The merged dataset is saved in a CSV file.
+
+```{julia}
+# Load the datasets
+hadcrut = CSV.read(hfilename, DataFrame)
+gistemp = CSV.read(gfilename, DataFrame)
+noaa = CSV.read(nfilename, DataFrame)
+berkeley = CSV.read(bfilename, DataFrame)
+oni = CSV.read(ofilename, DataFrame)
+
+# Dates
+min_date = minimum([minimum(hadcrut.Date), minimum(gistemp.Date), minimum(noaa.Date), minimum(berkeley.Date), minimum(oni.Date)])
+max_date = maximum([maximum(hadcrut.Date), maximum(gistemp.Date), maximum(noaa.Date), maximum(berkeley.Date), maximum(oni.Date)])
+complete_dates = collect(min_date:Month(1):max_date)
+compiled_data = DataFrame(Date=complete_dates)
+
+# HadCRUT5
+compiled_data = leftjoin(compiled_data, hadcrut, on = :Date)
+rename!(compiled_data, :RawTemperature => :HadCRUT_RawTemperature)
+rename!(compiled_data, :Temp => :HadCRUT_Temp)
+sort!(compiled_data, :Date)
+
+# GISTEMP
+compiled_data = leftjoin(compiled_data, gistemp, on = :Date)
+rename!(compiled_data, :RawTemp => :GISTEMP_RawTemperature)
+rename!(compiled_data, :Temp => :GISTEMP_Temp)  
+sort!(compiled_data, :Date)
+
+# NOAA
+compiled_data = leftjoin(compiled_data, noaa, on = :Date)
+rename!(compiled_data, :RawTemp => :NOAA_RawTemperature)
+rename!(compiled_data, :Temp => :NOAA_Temp)
+sort!(compiled_data, :Date)
+
+# Berkeley Earth
+compiled_data = leftjoin(compiled_data, berkeley, on = :Date)
+rename!(compiled_data, :RawTemperature => :Berkeley_RawTemperature)
+rename!(compiled_data, :Temp => :Berkeley_Temp)
+sort!(compiled_data, :Date)
+
+# ONI
+compiled_data = leftjoin(compiled_data, oni, on = :Date)
+rename!(compiled_data, :Anom => :ONI_Anomaly)   
+sort!(compiled_data, :Date)
+
+# Save the compiled data
+compiled_filename = "data/Compiled_Global_Temperature_Data.csv"
+CSV.write(compiled_filename, compiled_data)
+```
+
+The compiled dataset is now saved here [`Compiled_Global_Temperature_Data.csv`](data/Compiled_Global_Temperature_Data.csv). The data contains the date, raw temperature anomalies for each dataset, and the temperature anomalies relative to the 1850-1900 baseline. It also includes the ONI anomalies.
+
+## Plot the data {#sec-plot-data}
+
+Loading the compiled data and setting plot aesthetics.
+
+```{julia}
+# Load the compiled data and plot packages
+
+using Plots
+compiled_data = CSV.read(compiled_filename, DataFrame)
+
+# Set plot aesthetics
+theme(:ggplot2)
+default(
+        fontfamily = "Computer Modern",
+        tickfontsize = 10,        legendfontsize = 10,
+        titlefontsize = 12,
+        xlabelfontsize = 10,
+        ylabelfontsize = 10,
+        titlefontfamily = "Computer Modern",
+        legendfontfamily = "Computer Modern",
+        tickfontfamily = "Computer Modern",
+        dpi = 500
+)
+
+# Extract the dates for x-axis ticks
+# This will be used for the x-axis ticks in the plot
+xls = compiled_data.Date;
+```
+
+Plotting the data.
+
+```{julia}
+# Plot the data one dataset at a time, for clarity
+p = plot(compiled_data.Date, compiled_data.HadCRUT_Temp, label="HadCRUT5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies", linewidth=0.5, markershape=:circle, markersize=1)
+plot!(compiled_data.Date, compiled_data.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies" , linewidth=0.5, markershape=:diamond, markersize=1)
+plot!(compiled_data.Date, compiled_data.NOAA_Temp, label="NOAAGlobalTemp", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies" , linewidth=0.5, markershape=:+, markersize=1)
+plot!(compiled_data.Date, compiled_data.Berkeley_Temp, label="Berkeley Earth", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies", linewidth=0.5, markershape=:xcross, markersize=1)
+plot!(legend=:topleft, xticks=(xls[1:180:end], Dates.format.(xls[1:180:end], "Y"))) # Set x-axis ticks every 180 months
+display(p)
+```
+
+The plot shows the global temperature anomalies for each dataset. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, and Berkeley Earth in purple. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
+
+```{julia}
+#| output: false
+# Save the plot
+
+savefig("data/Global_Temperature_Anomalies.pdf")
+```
+
+The plot is saved as a PDF file as [`Global_Temperature_Anomalies.pdf`](data/Global_Temperature_Anomalies.pdf).
+
+### The last 30 years
+
+Zooming in on the last 30 years of data.
+
+```{julia}
+# Zoom in on the last 30 years of data
+
+compiled_data_zoomed = compiled_data[compiled_data.Date .>= Date(1995, 1, 1), :]
+
+p_zoomed = plot(compiled_data_zoomed.Date, compiled_data_zoomed.HadCRUT_Temp, label="HadCRUT5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:circle, markersize=1)
+plot!(compiled_data_zoomed.Date, compiled_data_zoomed.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:diamond, markersize=1)
+plot!(compiled_data_zoomed.Date, compiled_data_zoomed.NOAA_Temp, label="NOAAGlobalTemp", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:+, markersize=1)
+plot!(compiled_data_zoomed.Date, compiled_data_zoomed.Berkeley_Temp, label="Berkeley Earth", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:xcross, markersize=1)
+plot!(legend=:topleft, xticks=(compiled_data_zoomed.Date[1:60:end], Dates.format.(compiled_data_zoomed.Date[1:60:end], "Y")))
+display(p_zoomed)
+```
+
+The zoomed-in plot shows the global temperature anomalies for each dataset over the last 30 years. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, and Berkeley Earth in purple. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
+
+```{julia}
+#| output: false
+# Save the zoomed plot
+
+savefig("data/Global_Temperature_Anomalies_Last_30_Years.pdf")
+```
+
+The plot is saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years.pdf`](data/Global_Temperature_Anomalies_Last_30_Years.pdf).
+
+### Adding El Niño and La Niña events {#sec-Adding-ONI}
+
+To add the periods of El Niño and La Niña events to the plot, we will use the Oceanic Niño Index (ONI) anomalies. An El Niño event is defined as a period when the ONI anomaly is above +0.5°C for five consecutive 3-month running means, while a La Niña event is defined as a period when the ONI anomaly is below -0.5°C for five consecutive 3-month running means. Nonetheless, to keep the data frequency consistent, we will use the monthly ONI anomalies directl, which are available in the ONI dataset.
+
+First, we need to classify the ONI anomalies.
+
+```{julia}
+# Classify ONI anomalies into El Niño, La Niña, and Neutral events
+
+ONI_Anomaly = compiled_data_zoomed.ONI_Anomaly[.!ismissing.(compiled_data_zoomed.ONI_Anomaly)]
+
+T = length(ONI_Anomaly)
+indicator = zeros(Int, T)
+
+for i in 1:T
+    if ONI_Anomaly[i] >= 0.5
+        indicator[i] = 1
+    elseif ONI_Anomaly[i] <= -0.5
+        indicator[i] = -1
+    else
+        indicator[i] = 0
+    end
+end
+```
+
+Then we can add the El Niño and La Niña events to the plot. The shaded areas will indicate the periods of El Niño (red) and La Niña (blue) events based on the ONI anomalies.
+
+```{julia}
+p_zoomed_oni = p_zoomed
+
+i = 1
+while i <= length(indicator)
+    current_val = indicator[i]
+    if current_val in (-1, 1)
+        start_idx = i
+        while i <= length(indicator) && indicator[i] == current_val
+            i = i + 1
+        end
+        stop_idx = i - 1
+        if (stop_idx <= start_idx) || (stop_idx - start_idx < 4)
+            continue
+        else
+            vspan!(p_zoomed_oni, [compiled_data_zoomed.Date[start_idx], compiled_data_zoomed.Date[stop_idx]], color=current_val == 1 ? :red : :blue, alpha=0.1, label ="")
+        end
+    else
+        i = i + 1
+    end
+end
+
+display(p_zoomed_oni)
+```
+
+The plot now shows the global temperature anomalies for each dataset over the last 30 years, with shaded areas indicating El Niño (red) and La Niña (blue) events based on the ONI anomalies. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
+
+```{julia}
+#| output: false
+
+# Save the plot with ONI events
+
+savefig("data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf")
+```
+
+The plot is saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years_ONI.pdf`](data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf).
+
+## References 
+
+::: {#refs}
+:::
+
+## Citation
+
+For citing this notebook, please use the following BibTeX entry:
+
+```bibtex
+@article{vera-valdés2024,
+  author = {Vera-Valdés, J. Eduardo and Kvist, Olivia},
+  title = {Breaching 1.5°C: Give Me the Odds},
+  journal = {arXiv},
+  date = {2024-12-17},
+  url = {https://arxiv.org/abs/2412.13855},
+  doi = {10.48550/arXiv.2412.13855}
+}
+```
