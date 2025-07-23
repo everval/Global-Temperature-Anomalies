@@ -16,7 +16,7 @@ website:
         text: Author
   repo-url: https://github.com/everval/Global-Temperature-Anomalies
   repo-actions: [source, issue]
-
+  page-footer: "Page created by [J. Eduardo Vera-Valdés](https://everval.github.io/)."
 
 format:
   html:

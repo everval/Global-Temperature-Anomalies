@@ -3,3 +3,5 @@
 /.quarto
 /_freeze
 /_site
+/.quarto/
+/site_libs/
