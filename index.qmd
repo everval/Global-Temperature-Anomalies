@@ -144,8 +144,8 @@ fechas = collect(start:Month(1):fin) # Create a Date array
 
 gistemp = DataFrame(:Date=>fechas, :RawTemp=>gistemp)
 
-oldbase = mean(gistemp[(gistemp.Date.>=Date(1850, 1, 1)).&(gistemp.Date.<Date(1900, 1, 1)), :RawTemp])
-gistemp[!, :Temp] = gistemp[!, :RawTemp] .- oldbase
+oldbase = mean(gistemp[(gistemp.Date.>=Date(1880, 1, 1)).&(gistemp.Date.<Date(1900, 1, 1)), :RawTemp])
+gistemp[!, :Temp] = gistemp[!, :RawTemp] .- oldbase .+ 0.038 # Adjust for pre-1880 data
 
 CSV.write(gfilename, gistemp)
 
@@ -153,6 +153,9 @@ first(gistemp, 5) # Show the first 5 rows of the GISTEMP data
 ```
 
 The GISTEMP dataset is now saved here [`GISTEMP_global_monthly_average.csv`](data/GISTEMP_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
+
+Note that the GISTEMP data starts in 1880. [Following the data source recommendation](https://data.giss.nasa.gov/gistemp/faq/#q102a), to calculate the GISTEMP anomaly with respect to 1850-1900, we can adjust to 1880-1899 from 1951-1980, and then make a small adjustment of 0.038°C to account for the pre-1880 data. 
+
 
 ## NOAAGlobalTemp {#sec-NOAAGlobalTemp}
 
