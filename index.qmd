@@ -120,7 +120,9 @@ The HadCRUT5 dataset is now saved here [`HadCRUT5_global_monthly_average.csv`](d
 
 The GISTEMP dataset is a global monthly average temperature dataset [@GISTEMP]. It is available in CSV format from [the NASA GISS website](https://data.giss.nasa.gov/gistemp/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
 
-Note that the GISTEMP data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function defined above. Moreover, the GISTEMP data starts in 1880, see below. For consistency, the temperature anomalies are calculated relative to the 1850-1900 baseline, where data before 1880 is ignored in the calculations.
+Note that the GISTEMP data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function defined above. 
+
+Moreover, the GISTEMP data starts in 1880, see below. For consistency, the temperature anomalies are calculated relative to the 1850-1900 baseline. [Following the data source recommendation](https://data.giss.nasa.gov/gistemp/faq/#q102a), to calculate the GISTEMP anomaly with respect to 1850-1900, we can adjust to 1880-1899 from 1951-1980, and then make a small adjustment of 0.038°C to account for the pre-1880 data. 
 
 ```{julia}
 # Download the GISTEMP temperature data 
@@ -153,8 +155,6 @@ first(gistemp, 5) # Show the first 5 rows of the GISTEMP data
 ```
 
 The GISTEMP dataset is now saved here [`GISTEMP_global_monthly_average.csv`](data/GISTEMP_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
-
-Note that the GISTEMP data starts in 1880. [Following the data source recommendation](https://data.giss.nasa.gov/gistemp/faq/#q102a), to calculate the GISTEMP anomaly with respect to 1850-1900, we can adjust to 1880-1899 from 1951-1980, and then make a small adjustment of 0.038°C to account for the pre-1880 data. 
 
 
 ## NOAAGlobalTemp {#sec-NOAAGlobalTemp}
