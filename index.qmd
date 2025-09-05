@@ -163,8 +163,8 @@ The NOAAGlobalTemp dataset is a global monthly average temperature dataset compi
 
 ```{julia}
 # Download the NOAAGlobalTemp temperature data 
-# URL of the NOAAGlobalTemp global monthly average CSV
-nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.0.0.202506.asc"
+# URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.0.0.202507.asc"
 # Local filename to save
 nfilename = "data/NOAA_global_monthly_average.csv"
 
