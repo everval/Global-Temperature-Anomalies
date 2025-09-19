@@ -60,9 +60,12 @@ Pkg.activate(pwd())
 using Dates, CSV, DataFrames, HTTP, Statistics
 ```
 
-By default, `GISTEMP` data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function.
+By default, `GISTEMP` data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function. The code can be seen below in the folded section.
 
 ```{julia}
+#| code-fold: true
+#| warning: false
+#| output: false
 # Function to convert wide format data to long format
 
 function longseries(data)
@@ -163,8 +166,13 @@ The NOAAGlobalTemp dataset is a global monthly average temperature dataset compi
 
 ```{julia}
 # Download the NOAAGlobalTemp temperature data 
+<<<<<<< HEAD
 # URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
 nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.0.0.202507.asc"
+=======
+# URL of the NOAAGlobalTemp global monthly average CSV
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.0.0.202508.asc"
+>>>>>>> a4eb10e (Update sep-25)
 # Local filename to save
 nfilename = "data/NOAA_global_monthly_average.csv"
 
@@ -331,6 +339,7 @@ The compiled dataset is now saved here [`Compiled_Global_Temperature_Data.csv`](
 Loading the compiled data and setting plot aesthetics.
 
 ```{julia}
+#| warning: false
 # Load the compiled data and plot packages
 
 using Plots
