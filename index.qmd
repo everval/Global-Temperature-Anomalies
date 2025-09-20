@@ -96,7 +96,7 @@ The HadCRUT5 dataset is a global monthly average temperature dataset compiled by
 ```{julia}
 # Download the HadCRUT temperature data 
 # URL of the HadCRUT5 global monthly average CSV
-hurl = "https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.0.2.0/analysis/diagnostics/HadCRUT.5.0.2.0.analysis.summary_series.global.monthly.csv"
+hurl = "https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.1.0.0/analysis/diagnostics/HadCRUT.5.1.0.0.analysis.summary_series.global.monthly.csv"
 # Local filename to save
 hfilename = "data/HadCRUT5_global_monthly_average.csv"
 open(hfilename, "w") do io
@@ -324,7 +324,7 @@ sort!(compiled_data, :Date)
 compiled_filename = "data/Compiled_Global_Temperature_Data.csv"
 CSV.write(compiled_filename, compiled_data)
 
-first(compiled_data, 5) # Show the first 5 rows of the compiled data
+last(compiled_data, 5) # Show the last 5 rows of the compiled data
 ```
 
 The compiled dataset is now saved here [`Compiled_Global_Temperature_Data.csv`](data/Compiled_Global_Temperature_Data.csv). The data contains the date, raw temperature anomalies for each dataset, and the temperature anomalies relative to the 1850-1900 baseline. It also includes the ONI anomalies.
