@@ -351,7 +351,7 @@ default(
         titlefontfamily = "Computer Modern",
         legendfontfamily = "Computer Modern",
         tickfontfamily = "Computer Modern",
-        dpi = 500
+        dpi = 600
 )
 
 # Extract the dates for x-axis ticks
