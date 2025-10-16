@@ -114,7 +114,7 @@ hadcrut[!, :Temp] = hadcrut[!, :RawTemperature] .- oldbase;
 
 CSV.write(hfilename, hadcrut)
 
-first(hadcrut, 5) # Show the first 5 rows of the HadCRUT5 data
+last(hadcrut, 5) # Show the first 5 rows of the HadCRUT5 data
 ```
 
 The HadCRUT5 dataset is now saved here [`HadCRUT5_global_monthly_average.csv`](data/HadCRUT5_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
@@ -154,7 +154,7 @@ gistemp[!, :Temp] = gistemp[!, :RawTemp] .- oldbase .+ 0.038 # Adjust for pre-18
 
 CSV.write(gfilename, gistemp)
 
-first(gistemp, 5) # Show the first 5 rows of the GISTEMP data
+last(gistemp, 5) # Show the first 5 rows of the GISTEMP data
 ```
 
 The GISTEMP dataset is now saved here [`GISTEMP_global_monthly_average.csv`](data/GISTEMP_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
@@ -193,7 +193,7 @@ noaa[!, :Temp] = noaa[!, :RawTemp] .- oldbase
 
 CSV.write(nfilename, noaa)
 
-first(noaa, 5) # Show the first 5 rows of the NOAAGlobalTemp data
+last(noaa, 5) # Show the first 5 rows of the NOAAGlobalTemp data
 ```
 
 The NOAAGlobalTemp dataset is now saved here [`NOAA_global_monthly_average.csv`](data/NOAA_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
@@ -235,7 +235,7 @@ berkeley.Temp = rawtemp.Temp
 
 CSV.write(bfilename, berkeley)
 
-first(berkeley, 5) # Show the first 5 rows of the Berkeley Earth data
+last(berkeley, 5) # Show the first 5 rows of the Berkeley Earth data
 ```
 
 The Berkeley Earth dataset is now saved here [`BerkeleyEarth_global_monthly_average.csv`](data/BerkeleyEarth_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
@@ -268,7 +268,7 @@ oni = DataFrame(Date=fechas, Anom=rawoni[!, :ANOM_3])
 
 CSV.write(ofilename, oni)
 
-first(oni, 5) # Show the first 5 rows of the ONI data
+last(oni, 5) # Show the first 5 rows of the ONI data
 ```
 
 The ONI dataset is now saved here [`Nino_data.csv`](data/Nino_data.csv). The data contains the date and the ONI anomalies.
@@ -412,12 +412,12 @@ The plot is saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years.
 
 ### Adding El Niño and La Niña events {#sec-Adding-ONI}
 
-To add the periods of El Niño and La Niña events to the plot, we will use the Oceanic Niño Index (ONI) anomalies. An El Niño event is defined as a period when the ONI anomaly is above +0.5°C for five consecutive 3-month running means, while a La Niña event is defined as a period when the ONI anomaly is below -0.5°C for five consecutive 3-month running means. Nonetheless, to keep the data frequency consistent, we will use the monthly ONI anomalies directl, which are available in the ONI dataset.
+To add the periods of El Niño and La Niña events to the plot, we will use the SST anomalies. An El Niño event is defined as a period when the SST anomaly is above +0.5°C, while a La Niña event is defined as a period when the SST anomaly is below -0.5°C. 
 
-First, we need to classify the ONI anomalies.
+First, we need to classify the SST anomalies.
 
 ```{julia}
-# Classify ONI anomalies into El Niño, La Niña, and Neutral events
+# Classify SST anomalies into El Niño, La Niña, and Neutral events
 
 ONI_Anomaly = compiled_data_zoomed.ONI_Anomaly[.!ismissing.(compiled_data_zoomed.ONI_Anomaly)]
 
@@ -435,7 +435,7 @@ for i in 1:T
 end
 ```
 
-Then we can add the El Niño and La Niña events to the plot. The shaded areas will indicate the periods of El Niño (red) and La Niña (blue) events based on the ONI anomalies.
+Then we can add the El Niño and La Niña events to the plot. The shaded areas will indicate the periods of El Niño (red) and La Niña (blue) events based on the SST anomalies.
 
 ```{julia}
 p_zoomed_oni = p_zoomed
