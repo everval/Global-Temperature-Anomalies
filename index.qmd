@@ -57,7 +57,6 @@ Once the packages are installed, we can load them using the `using` keyword. The
 
 using Pkg
 Pkg.activate(pwd())
-Pkg.instantiate()
 using Dates, CSV, DataFrames, HTTP, Statistics
 ```
 
@@ -351,8 +350,7 @@ default(
         ylabelfontsize = 10,
         titlefontfamily = "Computer Modern",
         legendfontfamily = "Computer Modern",
-        tickfontfamily = "Computer Modern",
-        dpi = 600
+        tickfontfamily = "Computer Modern"
 )
 
 # Extract the dates for x-axis ticks
