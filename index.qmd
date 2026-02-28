@@ -377,6 +377,7 @@ The plot shows the global temperature anomalies for each dataset. The HadCRUT5 d
 # Save the plot
 
 savefig("data/Global_Temperature_Anomalies.pdf")
+savefig("data/Global_Temperature_Anomalies.png")
 ```
 
 The plot is saved as a PDF file as [`Global_Temperature_Anomalies.pdf`](data/Global_Temperature_Anomalies.pdf).
@@ -405,6 +406,7 @@ The zoomed-in plot shows the global temperature anomalies for each dataset over 
 # Save the zoomed plot
 
 savefig("data/Global_Temperature_Anomalies_Last_30_Years.pdf")
+savefig("data/Global_Temperature_Anomalies_Last_30_Years.png")
 ```
 
 The plot is saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years.pdf`](data/Global_Temperature_Anomalies_Last_30_Years.pdf).
@@ -469,6 +471,7 @@ The plot now shows the global temperature anomalies for each dataset over the la
 # Save the plot with ONI events
 
 savefig("data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf")
+savefig("data/Global_Temperature_Anomalies_Last_30_Years_ONI.png")
 ```
 
 The plot is saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years_ONI.pdf`](data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf).
