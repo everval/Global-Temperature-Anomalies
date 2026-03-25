@@ -16,8 +16,8 @@ author:
     orcid: 0000-0002-0337-8055
     corresponding: true
 abstract: |
-  This notebook downloads and compiles the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
-keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ONI, El Niño, La Niña]
+  This notebook downloads and compiles the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
+keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, ONI, El Niño, La Niña]
 execute:
   engine: julia
 bibliography: library.bib
@@ -25,7 +25,7 @@ bibliography: library.bib
 
 ## Introduction
 
-This notebook downloads the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the [HadCRUT5](#sec-HadCRUT5), [GISTEMP](#sec-GISTEMP), [NOAAGlobalTemp](#sec-NOAAGlobalTemp), [Berkeley Earth](#sec-BerkeleyEarth), and [ONI](#sec-ONI) datasets. 
+This notebook downloads the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the [HadCRUT5](#sec-HadCRUT5), [GISTEMP](#sec-GISTEMP), [NOAAGlobalTemp](#sec-NOAAGlobalTemp), [Berkeley Earth](#sec-BerkeleyEarth), [ERA5](#sec-ERA5), and [ONI](#sec-ONI) datasets. 
 
 
 The notebook shows the code so that you can easily use whichever dataset you want. The data is downloaded in CSV format and directly accessible from the notebook. The data files are also stored in the [`data` folder](https://github.com/everval/Global-Temperature-Anomalies/tree/main/data). Each CSV file contains three columns: `Date`, `RawTemperature`, and `Temp`. The `Date` column contains the date of the temperature anomaly in months, the `RawTemperature` column contains the raw temperature anomaly according to the dataset, and the `Temp` column contains the temperature anomaly relative to the preindustrial level. The preindustrial level is defined as the average temperature anomaly from 1850 to 1900. The `Temp` column is calculated by subtracting the preindustrial level from the `RawTemperature` column. The ONI dataset contains two columns: `Date` and `Anom`, where `Anom` is the ONI anomaly.
@@ -518,7 +518,7 @@ plot!(legend=:topleft, xticks=(xls[1:180:end], Dates.format.(xls[1:180:end], "Y"
 display(p)
 ```
 
-The plot shows the global temperature anomalies for each dataset. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, and Berkeley Earth in purple. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
+The plot shows the global temperature anomalies for each dataset. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, Berkeley Earth in purple, and ERA5 in brown. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
 
 ```{julia}
 #| output: false
@@ -543,12 +543,12 @@ p_zoomed = plot(compiled_data_zoomed.Date, compiled_data_zoomed.HadCRUT_Temp, la
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:diamond, markersize=1)
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.NOAA_Temp, label="NOAAGlobalTemp", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:+, markersize=1)
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.Berkeley_Temp, label="Berkeley Earth", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:xcross, markersize=1)
-plot!(compiled_data_zoomed.Date, compiled_data_zoomed.ERA5_Temp, label="ERA5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:star, markersize=1)|
+plot!(compiled_data_zoomed.Date, compiled_data_zoomed.ERA5_Temp, label="ERA5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:star, markersize=1)
 plot!(legend=:topleft, xticks=(compiled_data_zoomed.Date[1:60:end], Dates.format.(compiled_data_zoomed.Date[1:60:end], "Y")))
 display(p_zoomed)
 ```
 
-The zoomed-in plot shows the global temperature anomalies for each dataset over the last 30 years. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, and Berkeley Earth in purple. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
+The zoomed-in plot shows the global temperature anomalies for each dataset over the last 30 years. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, Berkeley Earth in purple, and ERA5 in brown. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
 
 ```{julia}
 #| output: false
