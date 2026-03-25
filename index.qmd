@@ -246,7 +246,7 @@ ERA5 is the fifth generation ECMWF reanalysis for the global climate and weather
 
 Note that the API requires setting up a personal key in a `.cdsapirc` file, which should be placed in the root directory of the project. You can get a key by requesting it at the [Copernicus Climate Data Store website](https://cds.climate.copernicus.eu/). The code below assumes that you have already set up the `.cdsapirc` file with your key.
 
- The code below uses the `CDSAPI` package to download the data in a NetCDF file.
+ The code below uses the `CDSAPI` package to download the data in a NetCDF file. The data is large, close to 1.5 GB, so it may take some time to download.
 
 ```julia
 # Download the ERA5 temperature data
@@ -284,90 +284,83 @@ request = """{
     "download_format": "unarchived"
 }"""
 
-CDSAPI.retrieve(dataset, request, "data/era5_2m_temperature.nc")
+CDSAPI.retrieve(dataset, request, "data/era5_2m_temperature_2020.nc")
 ```
-
 
 Once the data is downloaded, we can use the `NCDatasets` package to read the NetCDF file and process the data. The code below reads the data, extracts the latitude, longitude, time, and temperature variables, and calculates the global average temperature anomaly for each month.
 
 ```julia
 filename = "data/era5_2m_temperature.nc";
 ds = NCDataset(filename, "r");
-```
 
-```{julia}
-filename = "data/era5_2m_temperature.nc";
-ds = NCDataset(filename, "r");
-```
-
-```{julia}
-
-FILE = "data/era5_2m_temperature.nc"
-REF_START = 1991
-REF_END   = 2020
-
-Dataset(FILE) do ds
-    t2m = ds["t2m"]          # 1440 × 721 × 1034, in K
-    lat = ds["latitude"][:]  # 721
-    lon = ds["longitude"][:] # 1440 (not needed for area weights, but for sanity)
-    time = ds["valid_time"]  # 1034 DateTime values
-
-    # 1. Latitude weights (area proportional to cos(lat); grid is 0.25°)
-    lat_rad = deg2rad.(lat)
-    weights = cos.(lat_rad)
-    weights = weights / sum(weights)   # normalize so sum_j w_j = 1
-
-    # 2. Pre‑allocate global monthly mean (in K)
-    ntime = length(time)
-    global_mean_K = zeros(Float64, ntime)
-
-    # 3. Loop over each month (you can also vectorize if you trust memory)
-    for t = 1:ntime
-        # Access a single month slice: lon × lat
-        slice = view(t2m, :, :, t)   # 1440 × 721
-        # Compute area‑weighted mean over latitude (each longitude row uses same lat weight)
-        # works because area weights are latitude‑only on a regular lon–lat grid
-        temp_lat = zeros(Float64, size(lat, 1))
-        for j in eachindex(lat)
-            temp_lat[j] = mean(slice[:, j])   # average over longitude at latitude j
-        end
-        global_mean_K[t] =  sum(weights .* temp_lat)   # area‑weighted mean over lat
-    end
-
-    # 4. Convert to °C (optional for anomaly)
-    global_mean_C = global_mean_K .- 273.15
-
-    # 5. Identify reference period indices (1991–2020, monthly)
-    ref_inds = map(t -> (year(time[t]) in REF_START:REF_END), 1:ntime)
-    clim_mean = mean(global_mean_C[ref_inds])
-
-    # 6. Compute anomalies relative to 1991–2020 (in °C)
-    global_anom_C = global_mean_C .- clim_mean
-
-    # 7. If you want to return everything:
-    return (time, global_mean_C, global_anom_C, clim_mean)
-end
-
-```
-
-```julia
 lat_era = ds["latitude"][:]
 lon_era = ds["longitude"][:]
 time_era = ds["valid_time"][:]
 date_era = Date.(time_era)
+lat = lat_era * π/180
+```
+
+Processing the data is computationally intensive, so we will process the data in chunks of 120 months (10 years) to avoid memory issues. The code below calculates the global average temperature anomaly for each month and saves it in a CSV file. The temperature anomalies are calculated relative to the 1850-1900 baseline, which is estimated to be 0.88°C above the preindustrial level according to the latest ERA5 reanalysis [@ERA5].
+
+```julia
+ini = 1
+chunk_size = 120 # Number of months to skip for plotting
+
+era5_chunk = DataFrame()
+global_mean_C = zeros(length(date_era))
 ```
 
 ```julia
-temp_era = zeros(length(date_era))
-for i in 1:length(date_era)
-    temp_era[i] = mean(ds["t2m"][:, :, i])
+while ini < length(date_era)
+
+for i in ini:(ini+chunk_size-1)
+    t2m = ds["t2m"][:, :, i]  # 2D slice [lon, lat] for first time; in K
+    t_lon_mean = mean(t2m, dims=1)  # [lat]; drops new dim=2
+    weights = cos.(lat)
+    global_mean_K = sum(t_lon_mean' .* weights) / sum(weights)
+    global_mean_C[i] = global_mean_K - 273.15
 end
-temp_era = temp_era .- 273.15 # Convert from Kelvin to Celsius
-temp_preindustrial = temp_era .- 0.88
-era5 = DataFrame(Date=date_era, RawTemperature=temp_era, Temp=temp_preindustrial)
-erafilename = "data/ERA5_global_monthly_average.csv"
-CSV.write(erafilename, era5)
+
+display(global_mean_C[ini:(ini+chunk_size-1)])
+
+ini = ini + chunk_size
+
+end
 ```
+
+```julia
+display(global_mean_C)
+
+era5_raw = DataFrame(Date=date_era, RawTemperature=global_mean_C)
+
+CSV.write("data/ERA5_global_monthly_average_raw.csv", era5_raw)
+```
+
+Once the monthly global mean temperature anomalies are calculated, we can calculate the temperature anomalies relative to the 1850-1900 baseline. The code below calculates the monthly climatology for the period 1991-2020 and then calculates the anomalies relative to this climatology. Finally, we add the offset to convert to preindustrial anomalies and save the data in a CSV file.
+
+```julia
+time_dates = Date.(ds["valid_time"][:])  # If not already
+start_1991 = findfirst(≥(Date(1991,1,1)), time_dates)
+end_2020 = findfirst(≥(Date(2021,1,1)), time_dates) - 1
+n_clim = end_2020 - start_1991 + 1  # ~360
+
+month_clim = zeros(12)
+for m in 1:12
+    idx = (month.(time_dates[start_1991:end_2020]) .== m)
+    month_clim[m] = mean(global_mean_C[start_1991:end_2020][idx])
+end
+
+anom_1991_2020 = global_mean_C .- month_clim[month.(time_dates)]
+offset_preind = 0.88  # Latest ERA5-to-1850-1900; check HadCRUT5 [web:73]
+pa_anom = anom_1991_2020 .+ offset_preind
+
+println("2025 annual PA anomaly: ", round(mean(pa_anom[end-11:end]), digits=2), "°C")
+
+era5 = DataFrame(Date=time_dates, RawTemperature=anom_1991_2020, Temp=pa_anom)
+CSV.write("data/ERA5_global_monthly_average.csv", era5)
+```
+
+The snippet below reads the processed ERA5 data from the CSV file and shows the last 5 rows of the data.
 
 ```{julia}
 #| output: false
@@ -419,10 +412,18 @@ The code below merges all the datasets into a single dataset. It uses the `leftj
 
 ```{julia}
 # Load the datasets
+hfilename = "data/HadCRUT5_global_monthly_average.csv"
+gfilename = "data/GISTEMP_global_monthly_average.csv"
+nfilename = "data/NOAA_global_monthly_average.csv"
+bfilename = "data/BerkeleyEarth_global_monthly_average.csv"
+erafilename = "data/ERA5_global_monthly_average.csv"
+ofilename = "data/Nino_data.csv"
+
 hadcrut = CSV.read(hfilename, DataFrame)
 gistemp = CSV.read(gfilename, DataFrame)
 noaa = CSV.read(nfilename, DataFrame)
 berkeley = CSV.read(bfilename, DataFrame)
+era5 = CSV.read(erafilename, DataFrame)
 oni = CSV.read(ofilename, DataFrame)
 
 # Dates
@@ -453,6 +454,12 @@ sort!(compiled_data, :Date)
 compiled_data = leftjoin(compiled_data, berkeley, on = :Date)
 rename!(compiled_data, :RawTemperature => :Berkeley_RawTemperature)
 rename!(compiled_data, :Temp => :Berkeley_Temp)
+sort!(compiled_data, :Date)
+
+# ERA5
+compiled_data = leftjoin(compiled_data, era5, on = :Date)
+rename!(compiled_data, :RawTemperature => :ERA5_RawTemperature)
+rename!(compiled_data, :Temp => :ERA5_Temp)
 sort!(compiled_data, :Date)
 
 # ONI
@@ -506,6 +513,7 @@ p = plot(compiled_data.Date, compiled_data.HadCRUT_Temp, label="HadCRUT5", xlabe
 plot!(compiled_data.Date, compiled_data.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies" , linewidth=0.5, markershape=:diamond, markersize=1)
 plot!(compiled_data.Date, compiled_data.NOAA_Temp, label="NOAAGlobalTemp", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies" , linewidth=0.5, markershape=:+, markersize=1)
 plot!(compiled_data.Date, compiled_data.Berkeley_Temp, label="Berkeley Earth", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies", linewidth=0.5, markershape=:xcross, markersize=1)
+plot!(compiled_data.Date, compiled_data.ERA5_Temp, label="ERA5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies", linewidth=0.5, markershape=:star, markersize=1)
 plot!(legend=:topleft, xticks=(xls[1:180:end], Dates.format.(xls[1:180:end], "Y"))) # Set x-axis ticks every 180 months
 display(p)
 ```
@@ -535,6 +543,7 @@ p_zoomed = plot(compiled_data_zoomed.Date, compiled_data_zoomed.HadCRUT_Temp, la
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:diamond, markersize=1)
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.NOAA_Temp, label="NOAAGlobalTemp", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:+, markersize=1)
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.Berkeley_Temp, label="Berkeley Earth", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:xcross, markersize=1)
+plot!(compiled_data_zoomed.Date, compiled_data_zoomed.ERA5_Temp, label="ERA5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:star, markersize=1)|
 plot!(legend=:topleft, xticks=(compiled_data_zoomed.Date[1:60:end], Dates.format.(compiled_data_zoomed.Date[1:60:end], "Y")))
 display(p_zoomed)
 ```
