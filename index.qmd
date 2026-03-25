@@ -16,8 +16,8 @@ author:
     orcid: 0000-0002-0337-8055
     corresponding: true
 abstract: |
-  This notebook downloads and compiles the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
-keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ONI, El Niño, La Niña]
+  This notebook downloads and compiles the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
+keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, ONI, El Niño, La Niña]
 execute:
   engine: julia
 bibliography: library.bib
@@ -25,7 +25,7 @@ bibliography: library.bib
 
 ## Introduction
 
-This notebook downloads the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the [HadCRUT5](#sec-HadCRUT5), [GISTEMP](#sec-GISTEMP), [NOAAGlobalTemp](#sec-NOAAGlobalTemp), [Berkeley Earth](#sec-BerkeleyEarth), and [ONI](#sec-ONI) datasets. 
+This notebook downloads the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the [HadCRUT5](#sec-HadCRUT5), [GISTEMP](#sec-GISTEMP), [NOAAGlobalTemp](#sec-NOAAGlobalTemp), [Berkeley Earth](#sec-BerkeleyEarth), [ERA5](#sec-ERA5), and [ONI](#sec-ONI) datasets. 
 
 
 The notebook shows the code so that you can easily use whichever dataset you want. The data is downloaded in CSV format and directly accessible from the notebook. The data files are also stored in the [`data` folder](https://github.com/everval/Global-Temperature-Anomalies/tree/main/data). Each CSV file contains three columns: `Date`, `RawTemperature`, and `Temp`. The `Date` column contains the date of the temperature anomaly in months, the `RawTemperature` column contains the raw temperature anomaly according to the dataset, and the `Temp` column contains the temperature anomaly relative to the preindustrial level. The preindustrial level is defined as the average temperature anomaly from 1850 to 1900. The `Temp` column is calculated by subtracting the preindustrial level from the `RawTemperature` column. The ONI dataset contains two columns: `Date` and `Anom`, where `Anom` is the ONI anomaly.
@@ -55,7 +55,7 @@ Once the packages are installed, we can load them using the `using` keyword. The
 
 using Pkg
 Pkg.activate(pwd())
-using Dates, CSV, DataFrames, HTTP, Statistics
+using Dates, CSV, DataFrames, HTTP, CDSAPI, Statistics, NCDatasets
 ```
 
 By default, `GISTEMP` data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function. The code can be seen below in the folded section.
@@ -240,6 +240,139 @@ last(berkeley, 5) # Show the first 5 rows of the Berkeley Earth data
 
 The Berkeley Earth dataset is now saved here [`BerkeleyEarth_global_monthly_average.csv`](data/BerkeleyEarth_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
 
+## ERA5 {#sec-ERA5}
+
+ERA5 is the fifth generation ECMWF reanalysis for the global climate and weather from 1940 onwards [@ERA5]. Data is available from 1940 onwards. ERA5 replaces the ERA-Interim reanalysis. The ERA5 dataset is available in NetCDF format from the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means?tab=overview). The code to download and process the ERA5 data is shown below. 
+
+Note that the API requires setting up a personal key in a `.cdsapirc` file, which should be placed in the root directory of the project. You can get a key by requesting it at the [Copernicus Climate Data Store website](https://cds.climate.copernicus.eu/). The code below assumes that you have already set up the `.cdsapirc` file with your key.
+
+ The code below uses the `CDSAPI` package to download the data in a NetCDF file. The data is large, close to 1.5 GB, so it may take some time to download.
+
+```julia
+# Download the ERA5 temperature data
+
+dataset = "reanalysis-era5-single-levels-monthly-means"
+
+request = """{
+    "product_type": ["monthly_averaged_reanalysis"],
+    "variable": ["2m_temperature"],
+    "year": [
+        "1940", "1941", "1942", "1943", "1944", "1945",
+        "1946", "1947", "1948", "1949", "1950", "1951",
+        "1952", "1953", "1954", "1955", "1956", "1957",
+        "1958", "1959", "1960", "1961", "1962", "1963",
+        "1964", "1965", "1966", "1967", "1968", "1969",
+        "1970", "1971", "1972", "1973", "1974", "1975",
+        "1976", "1977", "1978", "1979", "1980", "1981",
+        "1982", "1983", "1984", "1985", "1986", "1987",
+        "1988", "1989", "1990", "1991", "1992", "1993",
+        "1994", "1995", "1996", "1997", "1998", "1999",
+        "2000", "2001", "2002", "2003", "2004", "2005",
+        "2006", "2007", "2008", "2009", "2010", "2011",
+        "2012", "2013", "2014", "2015", "2016", "2017",
+        "2018", "2019", "2020", "2021", "2022", "2023", 
+        "2024", "2025", "2026"
+    ],
+    "month": [
+        "01", "02", "03",
+        "04", "05", "06",
+        "07", "08", "09",
+        "10", "11", "12"
+    ],
+    "time": ["00:00"],
+    "data_format": "netcdf",
+    "download_format": "unarchived"
+}"""
+
+CDSAPI.retrieve(dataset, request, "data/era5_2m_temperature_2020.nc")
+```
+
+Once the data is downloaded, we can use the `NCDatasets` package to read the NetCDF file and process the data. The code below reads the data, extracts the latitude, longitude, time, and temperature variables, and calculates the global average temperature anomaly for each month.
+
+```julia
+filename = "data/era5_2m_temperature.nc";
+ds = NCDataset(filename, "r");
+
+lat_era = ds["latitude"][:]
+lon_era = ds["longitude"][:]
+time_era = ds["valid_time"][:]
+date_era = Date.(time_era)
+lat = lat_era * π/180
+```
+
+Processing the data is computationally intensive, so we will process the data in chunks of 120 months (10 years) to avoid memory issues. The code below calculates the global average temperature anomaly for each month and saves it in a CSV file. The temperature anomalies are calculated relative to the 1850-1900 baseline, which is estimated to be 0.88°C above the preindustrial level according to the latest ERA5 reanalysis [@ERA5].
+
+```julia
+ini = 1
+chunk_size = 120 # Number of months to skip for plotting
+
+era5_chunk = DataFrame()
+global_mean_C = zeros(length(date_era))
+```
+
+```julia
+while ini < length(date_era)
+
+for i in ini:(ini+chunk_size-1)
+    t2m = ds["t2m"][:, :, i]  # 2D slice [lon, lat] for first time; in K
+    t_lon_mean = mean(t2m, dims=1)  # [lat]; drops new dim=2
+    weights = cos.(lat)
+    global_mean_K = sum(t_lon_mean' .* weights) / sum(weights)
+    global_mean_C[i] = global_mean_K - 273.15
+end
+
+display(global_mean_C[ini:(ini+chunk_size-1)])
+
+ini = ini + chunk_size
+
+end
+```
+
+```julia
+display(global_mean_C)
+
+era5_raw = DataFrame(Date=date_era, RawTemperature=global_mean_C)
+
+CSV.write("data/ERA5_global_monthly_average_raw.csv", era5_raw)
+```
+
+Once the monthly global mean temperature anomalies are calculated, we can calculate the temperature anomalies relative to the 1850-1900 baseline. The code below calculates the monthly climatology for the period 1991-2020 and then calculates the anomalies relative to this climatology. Finally, we add the offset to convert to preindustrial anomalies and save the data in a CSV file.
+
+```julia
+time_dates = Date.(ds["valid_time"][:])  # If not already
+start_1991 = findfirst(≥(Date(1991,1,1)), time_dates)
+end_2020 = findfirst(≥(Date(2021,1,1)), time_dates) - 1
+n_clim = end_2020 - start_1991 + 1  # ~360
+
+month_clim = zeros(12)
+for m in 1:12
+    idx = (month.(time_dates[start_1991:end_2020]) .== m)
+    month_clim[m] = mean(global_mean_C[start_1991:end_2020][idx])
+end
+
+anom_1991_2020 = global_mean_C .- month_clim[month.(time_dates)]
+offset_preind = 0.88  # Latest ERA5-to-1850-1900; check HadCRUT5 [web:73]
+pa_anom = anom_1991_2020 .+ offset_preind
+
+println("2025 annual PA anomaly: ", round(mean(pa_anom[end-11:end]), digits=2), "°C")
+
+era5 = DataFrame(Date=time_dates, RawTemperature=anom_1991_2020, Temp=pa_anom)
+CSV.write("data/ERA5_global_monthly_average.csv", era5)
+```
+
+The snippet below reads the processed ERA5 data from the CSV file and shows the last 5 rows of the data.
+
+```{julia}
+#| output: false
+#| echo: false
+erafilename = "data/ERA5_global_monthly_average.csv"
+era5 = CSV.read(erafilename, DataFrame)
+```
+
+```{julia}
+last(era5, 5) # Show the first 5 rows of the ERA5 data
+```
+
 ## Oceanic Niño Index (ONI) {#sec-ONI}
 
 El Niño (La Niña) is a phenomenon in the equatorial Pacific Ocean characterized by a five consecutive 3-month running mean of sea surface temperature (SST) anomalies in the Niño 3.4 region that is above (below) the threshold of +0.5°C (-0.5°C). To keep the data frequency consistent, we will use the same monthly time resolution as the other datasets; hence using the SST directly. 
@@ -279,10 +412,18 @@ The code below merges all the datasets into a single dataset. It uses the `leftj
 
 ```{julia}
 # Load the datasets
+hfilename = "data/HadCRUT5_global_monthly_average.csv"
+gfilename = "data/GISTEMP_global_monthly_average.csv"
+nfilename = "data/NOAA_global_monthly_average.csv"
+bfilename = "data/BerkeleyEarth_global_monthly_average.csv"
+erafilename = "data/ERA5_global_monthly_average.csv"
+ofilename = "data/Nino_data.csv"
+
 hadcrut = CSV.read(hfilename, DataFrame)
 gistemp = CSV.read(gfilename, DataFrame)
 noaa = CSV.read(nfilename, DataFrame)
 berkeley = CSV.read(bfilename, DataFrame)
+era5 = CSV.read(erafilename, DataFrame)
 oni = CSV.read(ofilename, DataFrame)
 
 # Dates
@@ -313,6 +454,12 @@ sort!(compiled_data, :Date)
 compiled_data = leftjoin(compiled_data, berkeley, on = :Date)
 rename!(compiled_data, :RawTemperature => :Berkeley_RawTemperature)
 rename!(compiled_data, :Temp => :Berkeley_Temp)
+sort!(compiled_data, :Date)
+
+# ERA5
+compiled_data = leftjoin(compiled_data, era5, on = :Date)
+rename!(compiled_data, :RawTemperature => :ERA5_RawTemperature)
+rename!(compiled_data, :Temp => :ERA5_Temp)
 sort!(compiled_data, :Date)
 
 # ONI
@@ -366,11 +513,12 @@ p = plot(compiled_data.Date, compiled_data.HadCRUT_Temp, label="HadCRUT5", xlabe
 plot!(compiled_data.Date, compiled_data.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies" , linewidth=0.5, markershape=:diamond, markersize=1)
 plot!(compiled_data.Date, compiled_data.NOAA_Temp, label="NOAAGlobalTemp", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies" , linewidth=0.5, markershape=:+, markersize=1)
 plot!(compiled_data.Date, compiled_data.Berkeley_Temp, label="Berkeley Earth", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies", linewidth=0.5, markershape=:xcross, markersize=1)
+plot!(compiled_data.Date, compiled_data.ERA5_Temp, label="ERA5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies", linewidth=0.5, markershape=:star, markersize=1)
 plot!(legend=:topleft, xticks=(xls[1:180:end], Dates.format.(xls[1:180:end], "Y"))) # Set x-axis ticks every 180 months
 display(p)
 ```
 
-The plot shows the global temperature anomalies for each dataset. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, and Berkeley Earth in purple. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
+The plot shows the global temperature anomalies for each dataset. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, Berkeley Earth in purple, and ERA5 in brown. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
 
 ```{julia}
 #| output: false
@@ -395,11 +543,12 @@ p_zoomed = plot(compiled_data_zoomed.Date, compiled_data_zoomed.HadCRUT_Temp, la
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:diamond, markersize=1)
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.NOAA_Temp, label="NOAAGlobalTemp", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:+, markersize=1)
 plot!(compiled_data_zoomed.Date, compiled_data_zoomed.Berkeley_Temp, label="Berkeley Earth", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:xcross, markersize=1)
+plot!(compiled_data_zoomed.Date, compiled_data_zoomed.ERA5_Temp, label="ERA5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies (Last 30 Years)", linewidth=0.5, markershape=:star, markersize=1)
 plot!(legend=:topleft, xticks=(compiled_data_zoomed.Date[1:60:end], Dates.format.(compiled_data_zoomed.Date[1:60:end], "Y")))
 display(p_zoomed)
 ```
 
-The zoomed-in plot shows the global temperature anomalies for each dataset over the last 30 years. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, and Berkeley Earth in purple. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
+The zoomed-in plot shows the global temperature anomalies for each dataset over the last 30 years. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, Berkeley Earth in purple, and ERA5 in brown. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
 
 ```{julia}
 #| output: false

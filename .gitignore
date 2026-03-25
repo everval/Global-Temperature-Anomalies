@@ -7,3 +7,5 @@
 /site_libs/
 **/*.quarto_ipynb
 /.vscode/
+.cdsapirc
+data/era5_2m_temperature.nc
