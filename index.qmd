@@ -375,9 +375,9 @@ last(era5, 5) # Show the first 5 rows of the ERA5 data
 
 ## Oceanic Niño Index (ONI) {#sec-ONI}
 
-El Niño (La Niña) is a phenomenon in the equatorial Pacific Ocean characterized by a five consecutive 3-month running mean of sea surface temperature (SST) anomalies in the Niño 3.4 region that is above (below) the threshold of +0.5°C (-0.5°C). To keep the data frequency consistent, we will use the same monthly time resolution as the other datasets; hence using the SST directly. 
+El Niño (La Niña) is a phenomenon in the equatorial Pacific Ocean characterized by a five consecutive 3-month running mean of sea surface temperature anomalies in the Niño 3.4 region that is above (below) the threshold of +0.5°C (-0.5°C). 
 
-The SST data is obtained from the Extended Reconstructed Sea Surface Temperature (ERSST) dataset, which is a global monthly analysis of SST data derived from the International Comprehensive Ocean–Atmosphere Dataset (ICOADS) [@SST_Part1; @SST_Part2]. The ONI data is available in CSV format from [the NOAA Climate Monitoring website](https://www.ncei.noaa.gov/access/monitoring/enso/sst). The code below downloads the data, processes it, and saves it in a CSV file.
+The data is obtained from the Extended Reconstructed Sea Surface Temperature (ERSST) dataset, which is a global monthly analysis of sea surface temperature data derived from the International Comprehensive Ocean–Atmosphere Dataset (ICOADS) [@SST_Part1; @SST_Part2]. The ONI data is available in CSV format from [the NOAA Climate Monitoring website](https://www.ncei.noaa.gov/access/monitoring/enso/). The code below downloads the data, processes it, and saves it in a CSV file.
 
 ```{julia}
 # Download the ONI data
