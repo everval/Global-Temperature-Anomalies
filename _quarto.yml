@@ -1,22 +1,8 @@
 project:
-  type: website
+  type: manuscript
 
-website:
-  title: "Global Temperature Anomalies"
-  description: "Data compilation for global temperature anomalies."
-  navbar:
-    background: secondary
-    search: false
-    tools:
-      - icon: file-earmark-code
-        href: https://everval.github.io/Odds-of-breaching-1.5C/
-        text: Article
-      - icon: person-gear
-        href: https://everval.github.io/
-        text: Author
-  repo-url: https://github.com/everval/Global-Temperature-Anomalies
-  repo-actions: [source, issue]
-  page-footer: "Page created by [J. Eduardo Vera-Valdés](https://everval.github.io/)."
+manuscript:
+  article: index.qmd
 
 format:
   html:
@@ -24,3 +10,20 @@ format:
     html-math-method: katex
     theme: litera
     toc: true
+  typst:
+    font: "Computer Modern"
+    section-numbering: 1.1.1
+    paper: a4
+    numbering: true
+    margin:
+      x: 2.5cm
+      y: 3cm
+    include-before-body:
+      - text: |
+          #set par(justify: true)
+
+engine: julia
+execute: 
+  enabled: false
+  cache: true
+  freeze: auto

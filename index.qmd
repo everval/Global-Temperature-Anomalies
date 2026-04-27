@@ -1,6 +1,6 @@
 ---
-title: Global Temperature Anomalies
-subtitle: Data compilation 
+title: "Global Temperature Anomalies in Practice"
+subtitle: "An Open, Reproducible Framework for Baseline Harmonization and ENSO-Aware Visualization"
 date: today
 author:
   - name: J. Eduardo Vera-Valdés
@@ -16,52 +16,63 @@ author:
     orcid: 0000-0002-0337-8055
     corresponding: true
 abstract: |
-  This notebook downloads and compiles the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
-keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, ONI, El Niño, La Niña]
+  This paper develops a processing pipeline to download and process global temperature anomaly data from multiple datasets. The workflow downloads and compiles five of the most widely used global temperature anomaly datasets: HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ERA5. The data is processed to calculate the temperature anomalies relative to the 1850-1900 baseline, the preindustrial level, making it easy to compare the datasets. The paper also plots the data and highlight El Niño and La Niña events using the ONI dataset. This makes is possible to visually inspect the relationship between global temperature anomalies and El Niño and La Niña events. The compiled dataset is saved in a CSV file and is directly accessible via the paper's repository.
+keywords: [Global Temperature Anomalies, Preindustrial Baseline, El Niño Southern Oscillation]
 execute:
+  enabled: false
   engine: julia
+  echo: true
+  warning: false
 bibliography: library.bib
 ---
 
 ## Introduction
 
-This notebook downloads the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the [HadCRUT5](#sec-HadCRUT5), [GISTEMP](#sec-GISTEMP), [NOAAGlobalTemp](#sec-NOAAGlobalTemp), [Berkeley Earth](#sec-BerkeleyEarth), [ERA5](#sec-ERA5), and [ONI](#sec-ONI) datasets. 
+Global temperature anomalies are central to climate variability and change analysis, but practical use across datasets is often limited by inconsistent baseline periods and heterogeneous data formats. These differences reduce comparability, increase processing effort, and weaken reproducibility in applied climate research and services.
 
+This paper addresses that operational gap by providing a concise, reproducible setup that harmonizes major global temperature anomaly datasets to a common preindustrial baseline (1850-1900) and a common tabular structure. The workflow is designed for direct reuse, supporting Open Data and Open Science while improving usability for climate services and practitioner workflows. The codebase is implemented in Julia [@Julia] to combine high readability with fast execution.
 
-The notebook shows the code so that you can easily use whichever dataset you want. The data is downloaded in CSV format and directly accessible from the notebook. The data files are also stored in the [`data` folder](https://github.com/everval/Global-Temperature-Anomalies/tree/main/data). Each CSV file contains three columns: `Date`, `RawTemperature`, and `Temp`. The `Date` column contains the date of the temperature anomaly in months, the `RawTemperature` column contains the raw temperature anomaly according to the dataset, and the `Temp` column contains the temperature anomaly relative to the preindustrial level. The preindustrial level is defined as the average temperature anomaly from 1850 to 1900. The `Temp` column is calculated by subtracting the preindustrial level from the `RawTemperature` column. The ONI dataset contains two columns: `Date` and `Anom`, where `Anom` is the ONI anomaly.
+We compile and standardize five widely used datasets: HadCRUT5 [@HadCRUT5], GISTEMP [@GISTEMP], NOAAGlobalTemp [@NOAAGlobalTemp], Berkeley Earth [@BerkeleyEarth], and ERA5 [@ERA5]. To strengthen interpretation, we integrate the Oceanic Nino Index [@SST_Part1; @SST_Part2] and annotate El Nino and La Nina phases in the visualizations, making short-term ENSO variability easier to interpret alongside long-term warming.
 
+The remainder of the notebook is organized as follows: we load the required packages and helper functions, process each dataset, construct a unified dataset, and present comparative plots with ENSO annotations. The compiled dataset is saved as a CSV file in the repository. The codebase is structured for reproducibility and reuse through clear documentation and modular functions that can be adapted to other datasets or baseline definitions.
 
-The code is written in `Julia` and is organized into sections that correspond to the different datasets. Each section downloads the data, processes it, and saves it in a CSV file. The data is then merged into [a single dataset](#sec-merge-all-datasets) that contains the temperature anomalies for each dataset, as well as the ONI data. Finally, the notebook includes code to [plot the data](#sec-plot-data) and [highlight El Niño and La Niña events](#sec-Adding-ONI).
+## Necessary Packages and Functions
 
-## Load Packages and Functions
-
-We have to load the necessary packages before running the code. We will use the `Dates`, `CSV`, `DataFrames`,`HTTP`, and `Statistics` packages to download and process the data. `Statistics` is part of the Julia standard library, so it is already installed. The other packages are not part of the standard library, so you need to install them if you haven't done so already. You can install them using the `Pkg` package as follows: 
-
-```julia
-# Install necessary packages
-# This code installs the packages if they are not already installed.
-
-using Pkg
-Pkg.add(["Plots", "Dates", "CSV", "DataFrames", "HTTP"])
-```
-
-Once the packages are installed, we can load them using the `using` keyword. The `Plots` package is used for plotting the data, so it is not strictly necessary to load it if you are only downloading and processing the data.
+To ensure reproducibility and ease of use, this notebook uses a Julia project environment with pinned dependencies. The environment is defined by `Project.toml` (and `Manifest.toml` when present), allowing others to reproduce the same setup by activation. In practice, Julia's environment system makes reproducibility straightforward, while Python workflows can be less consistent when dependencies are not pinned.
 
 ```{julia}
-#| warning: false
 #| output: false
+#| warning: false
 
-# Load necessary packages
+# Initialize the project environment 
 
 using Pkg
 Pkg.activate(pwd())
-using Dates, CSV, DataFrames, HTTP, CDSAPI, Statistics, NCDatasets
 ```
 
-By default, `GISTEMP` data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function. The code can be seen below in the folded section.
+The code above activates the project environment in the current directory. We then load the packages used for data download, processing, and visualization: `Dates`, `CSV`, `DataFrames`, `HTTP`, `CDSAPI`, `Statistics`, `NCDatasets`, and `Plots`. `Dates` and `Statistics` are included in the Julia standard library; the remaining packages can be installed with `Pkg.add`:
 
 ```{julia}
-#| code-fold: true
+#| echo: true  
+#| output: false
+
+# Install necessary packages
+
+Pkg.add(["Plots", "CSV", "DataFrames", "HTTP", "CDSAPI", "NCDatasets"])
+```
+
+After installation, packages are loaded with `using`. 
+
+```{julia}
+# Load the necessary packages
+
+using Statistics, Dates, CSV, DataFrames, HTTP, CDSAPI, NCDatasets, Plots
+```
+
+
+The next utility converts wide-format data to long format. This is required for `GISTEMP`, where each row corresponds to one year and monthly values are stored in separate columns. The `longseries` function reshapes this structure into one row per month.
+
+```{julia}
 #| warning: false
 #| output: false
 # Function to convert wide format data to long format
@@ -86,6 +97,8 @@ function longseries(data)
     return long
 end
 ```
+
+The `longseries` function takes a DataFrame in wide format and returns a long-format array. It calculates the total number of months based on the number of years, same as the number of rows, and the number of non-missing months in the last year. It then fills the long-format array by looping through the years and months.
 
 ## HadCRUT5 {#sec-HadCRUT5}
 
@@ -167,7 +180,7 @@ Note that the url changes every month as new data is added: note the `...YYYYMM.
 ```{julia}
 # Download the NOAAGlobalTemp temperature data 
 # URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
-nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202602.asc"
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202603.asc"
 # Local filename to save
 nfilename = "data/NOAA_global_monthly_average.csv"
 
@@ -635,12 +648,10 @@ The plot is saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years_
 If you use any of the data or code in this notebook, please cite the original datasets and this notebook as follows:
 
 ```bibtex
-@article{vera-valdés2024,
-  author = {Vera-Valdés, J. Eduardo and Kvist, Olivia},
-  title = {Breaching 1.5°C: Give Me the Odds},
-  journal = {arXiv},
-  date = {2024-12-17},
-  url = {https://arxiv.org/abs/2412.13855},
-  doi = {10.48550/arXiv.2412.13855}
+@article{vera-valdes2026,
+  author = {Vera-Valdés, J. Eduardo},
+  title = {Data visualization and comparison of global temperature anomalies from multiple datasets},
+  journal = {Submitted},
+  year = {2026},
 }
 ```

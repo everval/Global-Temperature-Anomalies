@@ -9,3 +9,4 @@
 /.vscode/
 .cdsapirc
 data/era5_2m_temperature.nc
+/.github/
