@@ -31,13 +31,24 @@ bibliography: library.bib
 
 Global temperature anomalies are central to climate variability and change analysis, but practical use across datasets is often limited by inconsistent baseline periods and heterogeneous data formats. These differences reduce comparability, increase processing effort, and weaken reproducibility in applied climate research and services.
 
+@tbl-baselines summarizes the baseline periods, formats, and key notes for five of the most widely used global temperature anomaly datasets: HadCRUT5 [@HadCRUT5], GISTEMP [@GISTEMP], NOAAGlobalTemp [@NOAAGlobalTemp], Berkeley Earth [@BerkeleyEarth], and ERA5 [@ERA5]. The table highlights the operational challenges practitioners face when working with these datasets, including the need for custom processing to collect and harmonize data, and the lack of a common preindustrial baseline that is critical for climate change analysis.
+
+| Dataset        | Baseline Period                    | Format      | Notes |
+|----------|------------------|---------------|-----------------------------------|
+| HadCRUT5       | 1961–1990  | CSV           | Values are released later than other datasets. |
+| GISTEMP        | 1951–1980  | CSV           | Data start in 1880, so pre‑industrial anomalies need an extra adjustment. |
+| NOAAGlobalTemp | 1991–2020  | ASCII         | Filenames are versioned so the URL changes with each update. |
+| Berkeley Earth | 1951–1980  | TXT           | Space-delimited files. |
+| ERA5           | No fixed baseline       | NetCDF  | No global average is reported and users must compute anomalies relative to a chosen climatology themselves. |
+: Note: Baseline periods are based on dataset documentation and may be updated by data providers. Always check the latest documentation for each dataset. {#tbl-baselines    }
+
 This paper addresses that operational gap by providing a concise, reproducible setup that harmonizes major global temperature anomaly datasets to a common preindustrial baseline (1850-1900) and a common tabular structure. The workflow is designed for direct reuse, supporting Open Data and Open Science while improving usability for climate services and practitioner workflows. The codebase is implemented in Julia [@Julia] to combine high readability with fast execution.
 
-We compile and standardize five widely used datasets: HadCRUT5 [@HadCRUT5], GISTEMP [@GISTEMP], NOAAGlobalTemp [@NOAAGlobalTemp], Berkeley Earth [@BerkeleyEarth], and ERA5 [@ERA5]. To strengthen interpretation, we integrate the Oceanic Nino Index [@SST_Part1; @SST_Part2] and annotate El Nino and La Nina phases in the visualizations, making short-term ENSO variability easier to interpret alongside long-term warming.
+We compile and standardize data from the datasets listed in @tbl-baselines, calculating anomalies relative to the 1850-1900 baseline to facilitate direct comparison across datasets. This allows users to easily compare temperature anomalies across datasets without needing to perform their own baseline adjustments. The workflow also includes data processing steps to handle different formats and structures, ensuring that the final compiled dataset is consistent and ready for analysis. Moreover, to strengthen interpretation, we integrate the Oceanic Nino Index [@SST_Part1; @SST_Part2] and annotate El Nino and La Nina phases in the visualizations, making short-term ENSO variability easier to interpret alongside long-term warming.
 
 The remainder of the notebook is organized as follows: we load the required packages and helper functions, process each dataset, construct a unified dataset, and present comparative plots with ENSO annotations. The compiled dataset is saved as a CSV file in the repository. The codebase is structured for reproducibility and reuse through clear documentation and modular functions that can be adapted to other datasets or baseline definitions.
 
-## Necessary Packages and Functions
+## Necessary Packages
 
 To ensure reproducibility and ease of use, this notebook uses a Julia project environment with pinned dependencies. The environment is defined by `Project.toml` (and `Manifest.toml` when present), allowing others to reproduce the same setup by activation. In practice, Julia's environment system makes reproducibility straightforward, while Python workflows can be less consistent when dependencies are not pinned.
 
@@ -47,7 +58,6 @@ To ensure reproducibility and ease of use, this notebook uses a Julia project en
 using Pkg
 Pkg.activate(pwd())
 ```
-
 The code above activates the project environment in the current directory. We then load the packages used for data download, processing, and visualization: `Dates`, `CSV`, `DataFrames`, `HTTP`, `CDSAPI`, `Statistics`, `NCDatasets`, and `Plots`. `Dates` and `Statistics` are included in the Julia standard library; the remaining packages can be installed with `Pkg.add`:
 
 ```julia
@@ -64,12 +74,93 @@ After installation, packages are loaded with `using`.
 using Statistics, Dates, CSV, DataFrames, HTTP, CDSAPI, NCDatasets, Plots
 ```
 
+Once the necessary packages are defined, we can proceed to download and process each dataset.
 
-The next utility converts wide-format data to long format. This is required for `GISTEMP`, where each row corresponds to one year and monthly values are stored in separate columns. The `longseries` function reshapes this structure into one row per month.
+## HadCRUT5 {#sec-HadCRUT5}
+
+The HadCRUT5 dataset is a global monthly average temperature dataset compiled by the Met Office Hadley Centre and the Climatic Research Unit at the University of East Anglia [@HadCRUT5]. It is one of the most widely used datasets for global temperature anomalies. The HadCRUT5 dataset is available in CSV format from the [Met Office website](https://www.metoffice.gov.uk/hadobs/hadcrut5/). The code below downloads the data, processes it, and saves it in a CSV file. 
+```julia
+# Download the HadCRUT temperature data 
+# URL of the HadCRUT5 global monthly average CSV
+hurl = "https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.1.0.0/analysis/diagnostics/HadCRUT.5.1.0.0.analysis.summary_series.global.monthly.csv"
+# Local filename to save
+hfilename = "data/HadCRUT5_global_monthly_average.csv"
+open(hfilename, "w") do io
+    write(io, HTTP.get(hurl).body)
+end
+```
+
+The next code snippet reads the downloaded CSV file, renames the columns for clarity, and extracts the date and raw temperature anomalies. The code then calculates the temperature anomalies relative to the 1850-1900 baseline and saves the processed data in a new CSV file. The last line shows the last 5 rows of the processed HadCRUT5 data.
 
 ```julia
-#| warning: false
-#| output: false
+rawhadcrut = CSV.read(hfilename, DataFrame)
+rename!(rawhadcrut, :Time => :Date)
+rename!(rawhadcrut, :"Anomaly (deg C)" => :RawTemperature)
+
+hadcrut = rawhadcrut[!, [:Date, :RawTemperature]]
+
+oldbase = mean(hadcrut[(hadcrut.Date.>=Date(1850, 1, 1)).&(hadcrut.Date.<Date(1900, 1, 1)), :RawTemperature])
+hadcrut[!, :Temp] = hadcrut[!, :RawTemperature] .- oldbase;
+
+CSV.write(hfilename, hadcrut)
+
+last(hadcrut, 5) # Show the first 5 rows of the HadCRUT5 data
+```
+
+The HadCRUT5 dataset is now saved here [`HadCRUT5_global_monthly_average.csv`](data/HadCRUT5_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
+
+## NOAAGlobalTemp {#sec-NOAAGlobalTemp}
+
+The NOAAGlobalTemp dataset is a global monthly average temperature dataset compiled by the National Oceanic and Atmospheric Administration (NOAA) [@NOAAGlobalTemp]. It is available in ASCII format from the [NOAA NCEI website](https://www.ncei.noaa.gov/products/land-based-station/noaa-global-temp), where space-delimited files are used. Moreover, the URL of the dataset depends on the month of the data (note the `...YYYYMM.asc` name). The code below downloads the latest data, processes it, and saves it in a CSV file. 
+
+```julia
+# Download the NOAAGlobalTemp temperature data 
+# URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202603.asc"
+# Local filename to save
+nfilename = "data/NOAA_global_monthly_average.csv"
+
+# Download the file
+open(nfilename, "w") do io
+    write(io, HTTP.get(nurl).body)
+end
+
+lines = readlines(nfilename)
+cleaned_lines = [join(split(strip(line)), ",") for line in lines]
+
+# Write to file
+write(nfilename, join(cleaned_lines, "\n"))
+```
+
+The code includes a step to clean the data and convert it to CSV format. Step-by-step, the `cleaned_lines` variable is created by reading each line of the downloaded file, stripping whitespace (`strip()`), splitting the line into components based on spaces (`split()`), and then joining those components with commas to create a CSV format (`join()`). The cleaned lines are then written back to the same file, effectively converting the original space-delimited ASCII file into a comma-separated CSV file.`
+
+The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline, similar to the HadCRUT5 dataset. The last line shows the last 5 rows of the processed NOAAGlobalTemp data.
+
+```julia
+# Read the cleaned CSV file
+
+rawnoaa = CSV.read(nfilename, DataFrame; delim=',', header=0)
+
+fechas = Date.(rawnoaa.Column1, rawnoaa.Column2, 1) # Create Date column from Column1 and Column2
+
+noaa = DataFrame(:Date=>fechas, :RawTemp=>rawnoaa.Column3)
+
+oldbase = mean(noaa[(noaa.Date.>=Date(1850, 1, 1)).&(noaa.Date.<Date(1900, 1, 1)), :RawTemp])
+noaa[!, :Temp] = noaa[!, :RawTemp] .- oldbase
+
+CSV.write(nfilename, noaa)
+
+last(noaa, 5) # Show the first 5 rows of the NOAAGlobalTemp data
+```
+
+The NOAAGlobalTemp dataset is now saved here [`NOAA_global_monthly_average.csv`](data/NOAA_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
+
+
+## GISTEMP {#sec-GISTEMP}
+
+The GISTEMP dataset is a global monthly average temperature dataset [@GISTEMP]. It is available in CSV format from [the NASA GISS website](https://data.giss.nasa.gov/gistemp/). The data is provided in a wide format, where each row corresponds to one year and monthly values are stored in separate columns. To process this data, we need to convert it to a long format, where each row corresponds to a single month. The `longseries` function defined below performs this conversion.
+
+```julia
 # Function to convert wide format data to long format
 
 function longseries(data)
@@ -95,43 +186,7 @@ end
 
 The `longseries` function takes a DataFrame in wide format and returns a long-format array. It calculates the total number of months based on the number of years, same as the number of rows, and the number of non-missing months in the last year. It then fills the long-format array by looping through the years and months.
 
-## HadCRUT5 {#sec-HadCRUT5}
-
-The HadCRUT5 dataset is a global monthly average temperature dataset compiled by the Met Office Hadley Centre and the Climatic Research Unit at the University of East Anglia [@HadCRUT5]. It is one of the most widely used datasets for global temperature anomalies. The HadCRUT5 dataset is available in CSV format from the [Met Office website](https://www.metoffice.gov.uk/hadobs/hadcrut5/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
-
-```julia
-# Download the HadCRUT temperature data 
-# URL of the HadCRUT5 global monthly average CSV
-hurl = "https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.1.0.0/analysis/diagnostics/HadCRUT.5.1.0.0.analysis.summary_series.global.monthly.csv"
-# Local filename to save
-hfilename = "data/HadCRUT5_global_monthly_average.csv"
-open(hfilename, "w") do io
-    write(io, HTTP.get(hurl).body)
-end
-
-rawhadcrut = CSV.read(hfilename, DataFrame)
-rename!(rawhadcrut, :Time => :Date)
-rename!(rawhadcrut, :"Anomaly (deg C)" => :RawTemperature)
-
-hadcrut = rawhadcrut[!, [:Date, :RawTemperature]]
-
-oldbase = mean(hadcrut[(hadcrut.Date.>=Date(1850, 1, 1)).&(hadcrut.Date.<Date(1900, 1, 1)), :RawTemperature])
-hadcrut[!, :Temp] = hadcrut[!, :RawTemperature] .- oldbase;
-
-CSV.write(hfilename, hadcrut)
-
-last(hadcrut, 5) # Show the first 5 rows of the HadCRUT5 data
-```
-
-The HadCRUT5 dataset is now saved here [`HadCRUT5_global_monthly_average.csv`](data/HadCRUT5_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
-
-## GISTEMP {#sec-GISTEMP}
-
-The GISTEMP dataset is a global monthly average temperature dataset [@GISTEMP]. It is available in CSV format from [the NASA GISS website](https://data.giss.nasa.gov/gistemp/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
-
-Note that the GISTEMP data is in a wide format, with a column for each month. We will convert it to a long format, where each row corresponds to a single month using the `longseries` function defined above. 
-
-Moreover, the GISTEMP data starts in 1880, see below. For consistency, the temperature anomalies are calculated relative to the 1850-1900 baseline. [Following the data source recommendation](https://data.giss.nasa.gov/gistemp/faq/#q102a), to calculate the GISTEMP anomaly with respect to 1850-1900, we can adjust to 1880-1899 from 1951-1980, and then make a small adjustment of 0.038°C to account for the pre-1880 data. 
+Once the `longseries` function is defined, we can use it to process the GISTEMP data. The code below downloads the data, processes it, and saves it in a CSV file. 
 
 ```julia
 # Download the GISTEMP temperature data 
@@ -144,9 +199,20 @@ gfilename = "data/GISTEMP_global_monthly_average.csv"
 open(gfilename, "w") do io
     write(io, HTTP.get(gurl).body)
 end
+```
+
+The data is then cleaned from the `***` string used to denote missing values, and converts it to long format using the `longseries` function.
+
+```julia
+# Removing missing values and converting to long format
 
 longgistemp = CSV.read(gfilename, DataFrame, header=2, missingstring=["***"])
 gistemp = longseries(longgistemp)[:]
+```
+
+A date array is created based on the number of months in the dataset, starting from January 1880. The raw temperature anomalies are then adjusted to calculate the temperature anomalies relative to the 1850-1900 baseline. Following the data source recommendation, the data is adjusted to a 1880-1900 baseine and then make a small adjustment of 0.038°C to account for the pre-1880 data^[https://data.giss.nasa.gov/gistemp/faq/#q102a].
+
+```julia
 Tt = length(gistemp) - 1
 
 start = Date(1880, 1, 1) # Start date of the dataset
@@ -166,53 +232,10 @@ last(gistemp, 5) # Show the first 5 rows of the GISTEMP data
 The GISTEMP dataset is now saved here [`GISTEMP_global_monthly_average.csv`](data/GISTEMP_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
 
 
-## NOAAGlobalTemp {#sec-NOAAGlobalTemp}
-
-The NOAAGlobalTemp dataset is a global monthly average temperature dataset compiled by the National Oceanic and Atmospheric Administration (NOAA) [@NOAAGlobalTemp]. It is available in CSV format from the [NOAA NCEI website](https://www.ncei.noaa.gov/products/land-based-station/noaa-global-temp). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
-
-Note that the url changes every month as new data is added: note the `...YYYYMM.asc` name. If the code does not work in the future, try updating the url using the latest year and month.
-
-```julia
-# Download the NOAAGlobalTemp temperature data 
-# URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
-nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202603.asc"
-# Local filename to save
-nfilename = "data/NOAA_global_monthly_average.csv"
-
-# Download the file
-open(nfilename, "w") do io
-    write(io, HTTP.get(nurl).body)
-end
-
-lines = readlines(nfilename)
-cleaned_lines = [join(split(strip(line)), ",") for line in lines]
-
-# Write to file
-write(nfilename, join(cleaned_lines, "\n"))
-
-rawnoaa = CSV.read(nfilename, DataFrame; delim=',', header=0)
-
-fechas = Date.(rawnoaa.Column1, rawnoaa.Column2, 1) # Create Date column from Column1 and Column2
-
-noaa = DataFrame(:Date=>fechas, :RawTemp=>rawnoaa.Column3)
-
-oldbase = mean(noaa[(noaa.Date.>=Date(1850, 1, 1)).&(noaa.Date.<Date(1900, 1, 1)), :RawTemp])
-noaa[!, :Temp] = noaa[!, :RawTemp] .- oldbase
-
-CSV.write(nfilename, noaa)
-
-last(noaa, 5) # Show the first 5 rows of the NOAAGlobalTemp data
-```
-
-The NOAAGlobalTemp dataset is now saved here [`NOAA_global_monthly_average.csv`](data/NOAA_global_monthly_average.csv). The data contains the date, raw temperature anomalies, and the temperature anomalies relative to the 1850-1900 baseline.
-
 ## Berkeley Earth {#sec-BerkeleyEarth}
 
-The Berkeley Earth dataset is a global monthly average temperature dataset [@BerkeleyEarth]. It is available in CSV format from [the Berkeley Earth website](https://berkeleyearth.org/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
-
+The Berkeley Earth dataset is a global monthly average temperature dataset [@BerkeleyEarth]. It is available in TXT format from [the Berkeley Earth website](https://berkeleyearth.org/) using space-delimited files. The code below downloads the data, processes it, and saves it in a CSV file.
 ```julia
-#| warning: false
-
 # Download the Berkeley Earth temperature data
 # URL of the Berkeley Earth global monthly average CSV
 burl = "https://storage.googleapis.com/berkeley-earth-temperature-hr/global/Global_TAVG_monthly.txt"
@@ -222,9 +245,12 @@ bfilename = "data/BerkeleyEarth_global_monthly_average.csv"
 open(bfilename, "w") do io
     write(io, HTTP.get(burl).body)
 end
+```
 
+A new variable is created to store the date, which is constructed from the year and month columns in the dataset. The raw temperature anomalies are then adjusted to calculate the temperature anomalies relative to the 1850-1900 baseline. The processed data is saved in a new CSV file. The last line shows the last 5 rows of the processed Berkeley Earth data.
+
+```julia
 rawtemp = CSV.read(bfilename, DataFrame, comment="%", delim=" ", ignorerepeated=true)
-
 
 colnames = [:Year, :Month, :Anomaly_Monthly, :Unc_Monthly,
             :Anomaly_Annual, :Unc_Annual, :Anomaly_5yr, :Unc_5yr,
@@ -250,15 +276,17 @@ The Berkeley Earth dataset is now saved here [`BerkeleyEarth_global_monthly_aver
 
 ## ERA5 {#sec-ERA5}
 
-ERA5 is the fifth generation ECMWF reanalysis for the global climate and weather from 1940 onwards [@ERA5]. Data is available from 1940 onwards. ERA5 replaces the ERA-Interim reanalysis. The ERA5 dataset is available in NetCDF format from the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means?tab=overview). The code to download and process the ERA5 data is shown below. 
+ERA5 is the fifth generation ECMWF reanalysis for the global climate and weather [@ERA5]. Data is available from 1940 onwards in NetCDF format from the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means?tab=overview). The code to download and process the ERA5 data is shown below. 
 
-Note that the API requires setting up a personal key in a `.cdsapirc` file, which should be placed in the root directory of the project. You can get a key by requesting it at the [Copernicus Climate Data Store website](https://cds.climate.copernicus.eu/). The code below assumes that you have already set up the `.cdsapirc` file with your key.
+Note that the API requires setting up a personal key in a `.cdsapirc` file, which should be placed in the root directory of the project. You can get a key by requesting it at the [Copernicus Climate Data Store website](https://cds.climate.copernicus.eu/). The code below assumes that you have already set up the `.cdsapirc` file with your key. The `CDSAPI` package is used to interact with the Copernicus Climate Data Store API and download the data.
 
- The code below uses the `CDSAPI` package to download the data in a NetCDF file. The data is large, close to 1.5 GB, so it may take some time to download.
+ The code below uses the `CDSAPI` package to download the data in a NetCDF file. The data is large, close to 1.5 GB, so it may take some time to download. To obtain the full dataset, the whole period from 1940 to 2026 is requested, but for update purposes, the code can be modified to request a smaller period, for example, from 2020 to present. The code also specifies the variable to download (2m temperature), the time resolution (monthly), and the data format (NetCDF). 
+ 
+ The downloaded data is saved in the `data` directory with the name `era5_2m_temperature.nc`.
+
 
 ```julia
 # Download the ERA5 temperature data
-
 dataset = "reanalysis-era5-single-levels-monthly-means"
 
 request = """{
@@ -308,7 +336,9 @@ date_era = Date.(time_era)
 lat = lat_era * π/180
 ```
 
-Processing the data is computationally intensive, so we will process the data in chunks of 120 months (10 years) to avoid memory issues. The code below calculates the global average temperature anomaly for each month and saves it in a CSV file. The temperature anomalies are calculated relative to the 1850-1900 baseline, which is estimated to be 0.88°C above the preindustrial level according to the latest ERA5 reanalysis [@ERA5].
+Note that the latitude values are converted from degrees to radians for the calculation of the global average temperature anomaly, which involves weighting the temperature values by the cosine of the latitude. Basically, grids closer to the poles represent smaller areas than grids near the equator, so they are weighted less in the global average calculation. The cosine of the latitude is used as a weighting factor to account for this difference in area representation. Furthermore, the temperature values in the ERA5 dataset are in Kelvin, so they will need to be converted to Celsius by subtracting 273.15 from the global mean temperature values.
+
+Processing the data is computationally intensive, so we will process the data in chunks of 120 months (10 years) to avoid memory issues. The code below calculates the global average temperature anomaly for each month and saves it in a CSV file. 
 
 ```julia
 ini = 1
@@ -316,9 +346,7 @@ chunk_size = 120 # Number of months to skip for plotting
 
 era5_chunk = DataFrame()
 global_mean_C = zeros(length(date_era))
-```
 
-```julia
 while ini < length(date_era)
 
 for i in ini:(ini+chunk_size-1)
@@ -329,12 +357,12 @@ for i in ini:(ini+chunk_size-1)
     global_mean_C[i] = global_mean_K - 273.15
 end
 
-display(global_mean_C[ini:(ini+chunk_size-1)])
-
 ini = ini + chunk_size
 
 end
 ```
+
+The `global_mean_C` variable now contains the global average temperature anomaly for each month in degrees Celsius. The code below displays the global mean temperature anomalies and saves the data in a CSV file.
 
 ```julia
 display(global_mean_C)
@@ -344,7 +372,7 @@ era5_raw = DataFrame(Date=date_era, RawTemperature=global_mean_C)
 CSV.write("data/ERA5_global_monthly_average_raw.csv", era5_raw)
 ```
 
-Once the monthly global mean temperature anomalies are calculated, we can calculate the temperature anomalies relative to the 1850-1900 baseline. The code below calculates the monthly climatology for the period 1991-2020 and then calculates the anomalies relative to this climatology. Finally, we add the offset to convert to preindustrial anomalies and save the data in a CSV file.
+Once the monthly global mean temperature anomalies are calculated, we can calculate the temperature anomalies relative to the 1850-1900 baseline. Unlike the other datasets, ERA5 does not provide a fixed baseline period, so we need to calculate the climatology for the period 1991-2020 and then calculate the anomalies relative to this climatology. The code below performs these calculations and saves the processed data in a new CSV file. Finally, we add the offset to convert to preindustrial anomalies and save the data in a CSV file.
 
 ```julia
 time_dates = Date.(ds["valid_time"][:])  # If not already
@@ -375,9 +403,7 @@ The snippet below reads the processed ERA5 data from the CSV file and shows the 
 #| echo: false
 erafilename = "data/ERA5_global_monthly_average.csv"
 era5 = CSV.read(erafilename, DataFrame)
-```
 
-```julia
 last(era5, 5) # Show the first 5 rows of the ERA5 data
 ```
 
