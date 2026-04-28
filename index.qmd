@@ -23,6 +23,7 @@ execute:
   engine: julia
   echo: true
   warning: false
+  message: false
 bibliography: library.bib
 ---
 
@@ -40,10 +41,7 @@ The remainder of the notebook is organized as follows: we load the required pack
 
 To ensure reproducibility and ease of use, this notebook uses a Julia project environment with pinned dependencies. The environment is defined by `Project.toml` (and `Manifest.toml` when present), allowing others to reproduce the same setup by activation. In practice, Julia's environment system makes reproducibility straightforward, while Python workflows can be less consistent when dependencies are not pinned.
 
-```{julia}
-#| output: false
-#| warning: false
-
+```julia
 # Initialize the project environment 
 
 using Pkg
@@ -52,10 +50,7 @@ Pkg.activate(pwd())
 
 The code above activates the project environment in the current directory. We then load the packages used for data download, processing, and visualization: `Dates`, `CSV`, `DataFrames`, `HTTP`, `CDSAPI`, `Statistics`, `NCDatasets`, and `Plots`. `Dates` and `Statistics` are included in the Julia standard library; the remaining packages can be installed with `Pkg.add`:
 
-```{julia}
-#| echo: true  
-#| output: false
-
+```julia
 # Install necessary packages
 
 Pkg.add(["Plots", "CSV", "DataFrames", "HTTP", "CDSAPI", "NCDatasets"])
@@ -63,7 +58,7 @@ Pkg.add(["Plots", "CSV", "DataFrames", "HTTP", "CDSAPI", "NCDatasets"])
 
 After installation, packages are loaded with `using`. 
 
-```{julia}
+```julia
 # Load the necessary packages
 
 using Statistics, Dates, CSV, DataFrames, HTTP, CDSAPI, NCDatasets, Plots
@@ -72,7 +67,7 @@ using Statistics, Dates, CSV, DataFrames, HTTP, CDSAPI, NCDatasets, Plots
 
 The next utility converts wide-format data to long format. This is required for `GISTEMP`, where each row corresponds to one year and monthly values are stored in separate columns. The `longseries` function reshapes this structure into one row per month.
 
-```{julia}
+```julia
 #| warning: false
 #| output: false
 # Function to convert wide format data to long format
@@ -104,7 +99,7 @@ The `longseries` function takes a DataFrame in wide format and returns a long-fo
 
 The HadCRUT5 dataset is a global monthly average temperature dataset compiled by the Met Office Hadley Centre and the Climatic Research Unit at the University of East Anglia [@HadCRUT5]. It is one of the most widely used datasets for global temperature anomalies. The HadCRUT5 dataset is available in CSV format from the [Met Office website](https://www.metoffice.gov.uk/hadobs/hadcrut5/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
 
-```{julia}
+```julia
 # Download the HadCRUT temperature data 
 # URL of the HadCRUT5 global monthly average CSV
 hurl = "https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.1.0.0/analysis/diagnostics/HadCRUT.5.1.0.0.analysis.summary_series.global.monthly.csv"
@@ -138,7 +133,7 @@ Note that the GISTEMP data is in a wide format, with a column for each month. We
 
 Moreover, the GISTEMP data starts in 1880, see below. For consistency, the temperature anomalies are calculated relative to the 1850-1900 baseline. [Following the data source recommendation](https://data.giss.nasa.gov/gistemp/faq/#q102a), to calculate the GISTEMP anomaly with respect to 1850-1900, we can adjust to 1880-1899 from 1951-1980, and then make a small adjustment of 0.038°C to account for the pre-1880 data. 
 
-```{julia}
+```julia
 # Download the GISTEMP temperature data 
 # URL of the GISTEMP global monthly average CSV
 gurl = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts%2BdSST.csv"
@@ -177,7 +172,7 @@ The NOAAGlobalTemp dataset is a global monthly average temperature dataset compi
 
 Note that the url changes every month as new data is added: note the `...YYYYMM.asc` name. If the code does not work in the future, try updating the url using the latest year and month.
 
-```{julia}
+```julia
 # Download the NOAAGlobalTemp temperature data 
 # URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
 nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202603.asc"
@@ -215,7 +210,7 @@ The NOAAGlobalTemp dataset is now saved here [`NOAA_global_monthly_average.csv`]
 
 The Berkeley Earth dataset is a global monthly average temperature dataset [@BerkeleyEarth]. It is available in CSV format from [the Berkeley Earth website](https://berkeleyearth.org/). The code below downloads the data, processes it, and saves it in a CSV file. The data is then used to calculate the temperature anomalies relative to the 1850-1900 baseline.
 
-```{julia}
+```julia
 #| warning: false
 
 # Download the Berkeley Earth temperature data
@@ -375,14 +370,14 @@ CSV.write("data/ERA5_global_monthly_average.csv", era5)
 
 The snippet below reads the processed ERA5 data from the CSV file and shows the last 5 rows of the data.
 
-```{julia}
+```julia
 #| output: false
 #| echo: false
 erafilename = "data/ERA5_global_monthly_average.csv"
 era5 = CSV.read(erafilename, DataFrame)
 ```
 
-```{julia}
+```julia
 last(era5, 5) # Show the first 5 rows of the ERA5 data
 ```
 
@@ -392,7 +387,7 @@ El Niño (La Niña) is a phenomenon in the equatorial Pacific Ocean characterize
 
 The data is obtained from the Extended Reconstructed Sea Surface Temperature (ERSST) dataset, which is a global monthly analysis of sea surface temperature data derived from the International Comprehensive Ocean–Atmosphere Dataset (ICOADS) [@SST_Part1; @SST_Part2]. The ONI data is available in CSV format from [the NOAA Climate Monitoring website](https://www.ncei.noaa.gov/access/monitoring/enso/). The code below downloads the data, processes it, and saves it in a CSV file.
 
-```{julia}
+```julia
 # Download the ONI data
 ourl = "https://www.cpc.ncep.noaa.gov/data/indices/sstoi.indices"
 ofilename = "data/Nino_data.csv"
@@ -423,7 +418,7 @@ The ONI dataset is now saved here [`Nino_data.csv`](data/Nino_data.csv). The dat
 
 The code below merges all the datasets into a single dataset. It uses the `leftjoin` function to merge the datasets on the `Date` column. The resulting dataset contains the temperature anomalies for each dataset, as well as the ONI data. The merged dataset is saved in a CSV file.
 
-```{julia}
+```julia
 # Load the datasets
 hfilename = "data/HadCRUT5_global_monthly_average.csv"
 gfilename = "data/GISTEMP_global_monthly_average.csv"
@@ -493,7 +488,7 @@ The compiled dataset is now saved here [`Compiled_Global_Temperature_Data.csv`](
 
 Loading the compiled data and setting plot aesthetics.
 
-```{julia}
+```julia
 #| warning: false
 # Load the compiled data and plot packages
 
@@ -520,7 +515,7 @@ xls = compiled_data.Date;
 
 Plotting the data.
 
-```{julia}
+```julia
 # Plot the data one dataset at a time, for clarity
 p = plot(compiled_data.Date, compiled_data.HadCRUT_Temp, label="HadCRUT5", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies", linewidth=0.5, markershape=:circle, markersize=1)
 plot!(compiled_data.Date, compiled_data.GISTEMP_Temp, label="GISTEMP", xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)", title="Global Temperature Anomalies" , linewidth=0.5, markershape=:diamond, markersize=1)
@@ -533,7 +528,7 @@ display(p)
 
 The plot shows the global temperature anomalies for each dataset. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, Berkeley Earth in purple, and ERA5 in brown. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
 
-```{julia}
+```julia
 #| output: false
 # Save the plot
 
@@ -547,7 +542,7 @@ The plot is saved as a PDF file as [`Global_Temperature_Anomalies.pdf`](data/Glo
 
 Zooming in on the last 30 years of data.
 
-```{julia}
+```julia
 # Zoom in on the last 30 years of data
 
 compiled_data_zoomed = compiled_data[compiled_data.Date .>= Date(1995, 1, 1), :]
@@ -563,7 +558,7 @@ display(p_zoomed)
 
 The zoomed-in plot shows the global temperature anomalies for each dataset over the last 30 years. The HadCRUT5 dataset is shown in blue, GISTEMP in orange, NOAAGlobalTemp in green, Berkeley Earth in purple, and ERA5 in brown. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
 
-```{julia}
+```julia
 #| output: false
 # Save the zoomed plot
 
@@ -579,7 +574,7 @@ To add the periods of El Niño and La Niña events to the plot, we will use the 
 
 First, we need to classify the SST anomalies.
 
-```{julia}
+```julia
 # Classify SST anomalies into El Niño, La Niña, and Neutral events
 
 ONI_Anomaly = compiled_data_zoomed.ONI_Anomaly[.!ismissing.(compiled_data_zoomed.ONI_Anomaly)]
@@ -600,7 +595,7 @@ end
 
 Then we can add the El Niño and La Niña events to the plot. The shaded areas will indicate the periods of El Niño (red) and La Niña (blue) events based on the SST anomalies.
 
-```{julia}
+```julia
 p_zoomed_oni = p_zoomed
 
 i = 1
@@ -627,7 +622,7 @@ display(p_zoomed_oni)
 
 The plot now shows the global temperature anomalies for each dataset over the last 30 years, with shaded areas indicating El Niño (red) and La Niña (blue) events based on the ONI anomalies. The x-axis represents the date (monthly), and the y-axis represents the temperature anomaly in degrees Celsius.
 
-```{julia}
+```julia
 #| output: false
 
 # Save the plot with ONI events
