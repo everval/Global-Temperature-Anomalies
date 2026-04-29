@@ -16,8 +16,8 @@ format:
     paper: a4
     numbering: true
     margin:
-      x: 2.5cm
-      y: 3cm
+      x: 2cm
+      y: 2cm
     include-before-body:
       - text: |
           #set par(justify: true)
