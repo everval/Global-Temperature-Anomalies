@@ -1,7 +1,7 @@
 ---
 title: "Global Temperature Anomalies in Practice"
 subtitle: "An Open, Reproducible Framework for Baseline Harmonisation and ENSO-Aware Visualisation"
-date: today
+date: ""
 author:
   - name: J. Eduardo Vera-Valdés
     email: eduardo@math.aau.dk
@@ -16,7 +16,7 @@ author:
     orcid: 0000-0002-0337-8055
     corresponding: true
 abstract: |
-    We present a reproducible pipeline for downloading, processing, and harmonising global temperature anomaly series from HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ERA5. All datasets are aligned to a common 1850-1900 pre-industrial baseline to enable direct comparison. The workflow also integrates the Oceanic Niño Index (ONI) to annotate El Niño and La Niña phases in the figures, helping distinguish short-term variability from the long-term warming signal. Final outputs are exported as transparent, analysis-ready CSV files and made available through the repository.
+    We present a reproducible pipeline for downloading, processing, and harmonising global temperature anomaly series from HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ERA5. All datasets are aligned to a common 1850-1900 pre-industrial baseline to enable direct comparison. The workflow also integrates the Oceanic Niño Index (ONI) to annotate El Niño and La Niña phases in the figures, helping distinguish short-term variability from the long-term warming signal. Final outputs are exported as transparent, analysis-ready CSV files, available through the repository.
 keywords: [Global Temperature Anomalies, Pre-industrial Baseline, El Niño Southern Oscillation]
 execute:
   enabled: false
@@ -26,15 +26,15 @@ bibliography: library.bib
 
 ## Introduction
 
-Global temperature anomalies are central to climate variability and change analysis, but practical use across datasets is often limited by inconsistent baseline periods and heterogeneous data formats. @tbl-baselines summarises the baseline periods, formats, and key notes for five of the most widely used global temperature anomaly datasets: HadCRUT5 [@HadCRUT5], GISTEMP [@GISTEMP], NOAAGlobalTemp [@NOAAGlobalTemp], Berkeley Earth [@BerkeleyEarth], and ERA5 [@ERA5].
+Global temperature anomalies are central to climate variability and change analysis, but practical use across datasets is often limited by inconsistent baseline periods and heterogeneous data formats. @tbl-baselines summarises the baseline periods, formats, and key notes for five of the most widely used global temperature anomaly datasets.
 
 | Dataset | Baseline period | Format | Practical note |
 |:---|:---:|:---:|:---|
-| HadCRUT5 | 1961–1990 | CSV | Release lag is typically longer than for the other datasets. |
-| NOAAGlobalTemp | 1991–2020 | ASCII | Data is presented using space-delimited files. File names are versioned, so the download URL changes over time. |
-| GISTEMP | 1951–1980 | CSV | Series begins in 1880, so an additional pre-industrial adjustment is needed. Data is in wide format. |
-| Berkeley Earth | 1951–1980 | TXT | Distributed as space-delimited text files. |
-| ERA5 | No fixed baseline | NetCDF | No global average anomaly is provided; users must compute anomalies relative to a selected climatology. Requires setting up a key for accessing the data. |
+| HadCRUT5[@HadCRUT5] | 1961–1990 | CSV | Release lag is typically longer than for the other datasets. |
+| NOAAGlobalTemp[@NOAAGlobalTemp] | 1991–2020 | ASCII | Data is presented using space-delimited files. File names are versioned, so the download URL changes over time. |
+| GISTEMP[@GISTEMP] | 1951–1980 | CSV | Series begins in 1880, so an additional pre-industrial adjustment is needed. Data is in wide format. |
+| Berkeley Earth[@BerkeleyEarth] | 1951–1980 | TXT | Distributed as space-delimited text files. |
+| ERA5[@ERA5] | No fixed baseline | NetCDF | No global average anomaly is provided; users must compute anomalies relative to a selected climatology. Requires setting up a key for accessing the data. |
 : Baseline periods and processing considerations for major global temperature anomaly datasets.^[Note: baseline definitions may change; always check current provider documentation.] {#tbl-baselines tbl-colwidths="[20,20,9,51]"}
 
 The table highlights two recurring operational barriers: heterogeneous file structures and inconsistent baseline definitions. Together, these barriers reduce comparability, increase processing overhead, and weaken reproducibility in applied climate analysis.
@@ -45,127 +45,76 @@ We standardise all datasets listed in @tbl-baselines, compute anomalies relative
 
 The remainder of the paper proceeds from environment setup and source-specific processing to dataset merging and comparative visualisation with ENSO overlays.
 
-## Necessary Packages
+## Necessary Packages and Helper Functions
 
-To ensure reproducibility and ease of use, this notebook uses a Julia project environment with pinned dependencies. The environment is defined by `Project.toml` (and `Manifest.toml` when present), allowing others to reproduce the same setup.
+This notebook uses a Julia project environment with pinned dependencies. The workflow makes use of several packages for data download, processing, and visualisation: `CDSAPI` [@CDSAPIjl], `CSV` [@CSVjl], `Dates`, `DataFrames` [@DataFramesjl], `HTTP` [@HTTPjl], `NCDatasets` [@NCDatasetsjl], `Plots` [@Plotsjl], and `Statistics`.  
 
+`Dates` and `Statistics` are included in the Julia standard library; the remaining packages can be installed with `Pkg.add`. The code snippet below shows how to add the necessary packages. This step only needs to be done once, and the resulting `Project.toml` and `Manifest.toml` files will capture the exact versions used for reproducibility.
 
+```julia
+Pkg.add(["CDSAPI", "CSV", "DataFrames", "HTTP", "NCDatasets", "Plots"])
+```
+
+After installation, packages are loaded with `using`. 
 ```{julia}
 #| include: false
 #| echo: false
 #| output: false
 #| message: false
-# Load the package environment and core dependencies
 using Pkg
 Pkg.activate(pwd())
 using CSV, DataFrames, Plots
 ```
 
 ```julia
-# Initialize the project environment 
-using Pkg
-Pkg.activate(pwd())
-```
-The code above activates the project environment in the current directory. The workflow makes use of several packages for data download, processing, and visualisation: `CDSAPI` [@CDSAPIjl], `CSV` [@CSVjl], `Dates`, `DataFrames` [@DataFramesjl], `HTTP` [@HTTPjl], `NCDatasets` [@NCDatasetsjl], `Plots` [@Plotsjl], and `Statistics`.  To ensure reproducibility, these packages should be added to the `Project.toml` file.
-
-`Dates` and `Statistics` are included in the Julia standard library; the remaining packages can be installed with `Pkg.add`. The code snippet below shows how to add the necessary packages to the environment. This step only needs to be done once, and the resulting `Project.toml` and `Manifest.toml` files will capture the exact versions used for reproducibility.
-
-```julia
-# Install necessary packages
-Pkg.add(["CDSAPI", "CSV", "DataFrames", "HTTP", "NCDatasets", "Plots"])
-```
-
-After installation, packages are loaded with `using`. 
-
-```julia
-# Load the necessary packages
 using CDSAPI, CSV, DataFrames, Dates, HTTP, NCDatasets, Plots, Statistics
 ```
 
-Before presenting each source-specific subsection, the workflow follows four common steps: (1) retrieve raw data, (2) parse and standardise into a common date-anomaly structure, (3) align to the pre-industrial reference, and (4) save a cleaned CSV for merging and plotting. This common structure keeps the pipeline modular and easy to maintain when providers update formats or endpoints.
+Each dataset follows four steps: (1) download, (2) standardise to date–anomaly format, (3) adjust to 1850–1900 baseline, (4) save as CSV. Helper functions below support this workflow.
 
-## HadCRUT5 {#sec-HadCRUT5}
+A utility function streamlines baseline calculations:
 
-The HadCRUT5 dataset is provided by the Met Office Hadley Centre and the Climatic Research Unit at the University of East Anglia [@HadCRUT5]. The HadCRUT5 dataset is available in CSV format from the [Met Office website](https://www.metoffice.gov.uk/hadobs/hadcrut5/). The code below downloads the data, processes it, and saves it in a CSV file. 
 ```julia
-# Download the HadCRUT temperature data 
-# URL of the HadCRUT5 global monthly average CSV
-hurl = "https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.1.0.0/analysis/diagnostics/HadCRUT.5.1.0.0.analysis.summary_series.global.monthly.csv"
-# Local filename to save
-hfilename = "data/HadCRUT5_global_monthly_average.csv"
-open(hfilename, "w") do io
-    write(io, HTTP.get(hurl).body)
+function adjust_baseline(df, temp_col; start_year=1850, end_year=1900, date_col=:Date)
+    """Compute baseline mean and adjust temperature anomalies."""
+    oldbase = mean(df[(df[!, date_col].>=Date(start_year, 1, 1)).&(df[!, date_col].<Date(end_year, 1, 1)), temp_col])
+    return df[!, temp_col] .- oldbase
 end
 ```
 
-The next code snippet reads the downloaded CSV file, renames the columns for clarity, and extracts the date and raw temperature anomalies. The code then calculates the temperature anomalies relative to the 1850-1900 baseline and saves the processed data in a new CSV file, available at `data/HadCRUT5_global_monthly_average.csv` in the repository. The last line shows the last 3 rows of the processed HadCRUT5 data.
+## HadCRUT5 {#sec-HadCRUT5}
+
+The HadCRUT5 dataset is provided by the Met Office Hadley Centre and the Climatic Research Unit at the University of East Anglia [@HadCRUT5]. The HadCRUT5 dataset is available in CSV format from the [Met Office website](https://www.metoffice.gov.uk/hadobs/hadcrut5/). 
 
 ```julia
-# Read the downloaded CSV file and process the data
-rawhadcrut = CSV.read(hfilename, DataFrame)
-rename!(rawhadcrut, :Time => :Date)
-rename!(rawhadcrut, :"Anomaly (deg C)" => :RawTemperature)
-hadcrut = rawhadcrut[!, [:Date, :RawTemperature]]
-# Calculate temperature anomalies relative to the 1850-1900 baseline
-oldbase = mean(hadcrut[(hadcrut.Date.>=Date(1850, 1, 1)).&(hadcrut.Date.<Date(1900, 1, 1)), :RawTemperature])
-hadcrut[!, :Temp] = hadcrut[!, :RawTemperature] .- oldbase;
-# Save the processed data in a new CSV file
-CSV.write(hfilename, hadcrut)
-last(hadcrut, 3) # Show the last 3 rows of the HadCRUT5 data
-```
-
-```{julia}
-#| echo: false
-#| output: true
-# Preview processed HadCRUT5 data
 hfilename = "data/HadCRUT5_global_monthly_average.csv"
-hadcrut = CSV.read(hfilename, DataFrame)
-last(hadcrut, 3) # Show the last 3 rows of the HadCRUT5 data
+open(hfilename, "w") do io
+    write(io, HTTP.get("https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.1.0.0/analysis/diagnostics/HadCRUT.5.1.0.0.analysis.summary_series.global.monthly.csv").body)
+end
+rawhadcrut = CSV.read(hfilename, DataFrame)
+rename!(rawhadcrut, :Time => :Date, :"Anomaly (deg C)" => :RawTemperature)
+hadcrut = rawhadcrut[!, [:Date, :RawTemperature]]
+hadcrut[!, :Temp] = adjust_baseline(hadcrut, :RawTemperature)
+CSV.write(hfilename, hadcrut)
 ```
 
 
 ## NOAAGlobalTemp {#sec-NOAAGlobalTemp}
 
-The NOAAGlobalTemp dataset is provided by the National Oceanic and Atmospheric Administration (NOAA) [@NOAAGlobalTemp]. It is available in ASCII format from the [NOAA NCEI website](https://www.ncei.noaa.gov/products/land-based-station/noaa-global-temp), where space-delimited files are used. Moreover, the URL of the dataset depends on the month of the data; note the `...YYYYMM.asc` name in the URL. 
+The NOAAGlobalTemp dataset is provided by the National Oceanic and Atmospheric Administration (NOAA) [@NOAAGlobalTemp]. It is available in ASCII format from the [NOAA NCEI website](https://www.ncei.noaa.gov/products/land-based-station/noaa-global-temp), where space-delimited files are used. The URL of the dataset depends on the month of the data; note the `...YYYYMM.asc` name in the URL. 
 
 ```julia
-# Download the NOAAGlobalTemp temperature data 
-# URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
-nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202603.asc"
-# Local filename to save
 nfilename = "data/NOAA_global_monthly_average.csv"
-# Download the file
 open(nfilename, "w") do io
-    write(io, HTTP.get(nurl).body)
+    write(io, HTTP.get("https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202603.asc").body)
 end
-lines = readlines(nfilename)
-cleaned_lines = [join(split(strip(line)), ",") for line in lines]
-# Write to file
-write(nfilename, join(cleaned_lines, "\n"))
-```
-
-The code includes a cleaning step that converts the downloaded file to CSV format. The `cleaned_lines` variable is built by stripping each line (`strip()`), splitting it on whitespace (`split()`), and joining the resulting fields with commas (`join()`). The cleaned lines are then written back to the same file.
-
-The data are then used to calculate temperature anomalies relative to the 1850-1900 baseline, and the processed data are saved in a new CSV file, available at `data/NOAA_global_monthly_average.csv` in the repository. The last line shows the last 3 rows of the processed NOAAGlobalTemp data.
-
-```julia
-# Read the cleaned CSV file
+# Convert space-delimited ASCII to CSV
+write(nfilename, join([join(split(strip(line)), ",") for line in readlines(nfilename)], "\n"))
 rawnoaa = CSV.read(nfilename, DataFrame; delim=',', header=0)
-dates = Date.(rawnoaa.Column1, rawnoaa.Column2, 1) # Create Date column from Column1 and Column2
+dates = Date.(rawnoaa.Column1, rawnoaa.Column2, 1)
 noaa = DataFrame(:Date=>dates, :RawTemp=>rawnoaa.Column3)
-oldbase = mean(noaa[(noaa.Date.>=Date(1850, 1, 1)).&(noaa.Date.<Date(1900, 1, 1)), :RawTemp])
-noaa[!, :Temp] = noaa[!, :RawTemp] .- oldbase
+noaa[!, :Temp] = adjust_baseline(noaa, :RawTemp)
 CSV.write(nfilename, noaa)
-last(noaa, 3) # Show the last 3 rows of the NOAAGlobalTemp data
-```
-
-```{julia}
-#| echo: false
-#| output: true
-# Preview processed NOAA data
-nfilename = "data/NOAA_global_monthly_average.csv"
-noaa = CSV.read(nfilename, DataFrame)
-last(noaa, 3) # Show the last 3 rows of the NOAAGlobalTemp data
 ```
 
 
@@ -174,18 +123,14 @@ last(noaa, 3) # Show the last 3 rows of the NOAAGlobalTemp data
 The GISTEMP dataset [@GISTEMP] is available in CSV format from [the NASA GISS website](https://data.giss.nasa.gov/gistemp/). The data is provided in a wide format, where each row corresponds to one year and monthly values are stored in separate columns. To process this data, we need to convert it to a long format, where each row corresponds to a single month. The `longseries` function defined below performs this conversion.
 
 ```julia
-# Function to convert wide format data to long format
 function longseries(data)
-    height = size(data, 1) # Number of rows, equivalent to the number of years
-    last_row = 12 - count(ismissing, data[end, 2:13]) # Number of non-missing months in the last year
-    many = (height - 1) * 12 + last_row # Total number of months in the long format
-    long = zeros(many, 1) # Long format array
-    for ii = 1:(height-1) # Loop through all years except the last one
-        for jj = 1:12 # Loop through all months
-            long[(ii-1)*12+jj] = data[ii, jj+1]
-        end
+    """Convert wide-format (year rows) to long-format (monthly rows)."""
+    height, last_row = size(data, 1), 12 - count(ismissing, data[end, 2:13])
+    many, long = (height - 1) * 12 + last_row, zeros(many, 1)
+    for ii in 1:(height-1), jj in 1:12
+        long[(ii-1)*12+jj] = data[ii, jj+1]
     end
-    for jj = 1:last_row # Loop through the last year
+    for jj in 1:last_row
         long[(height-1)*12+jj] = data[height, jj+1]
     end
     return long
@@ -194,115 +139,56 @@ end
 
 The function takes a DataFrame in wide format and returns a long-format array. It calculates the total number of months based on the number of years, same as the number of rows, and the number of non-missing months in the last year. It then fills the long-format array by looping through the years and months.
 
-Once the `longseries` function is defined, we can use it to process the GISTEMP data. 
+Once the `longseries` function is defined, we can use it to process the GISTEMP data. Note that the data is cleaned from the `***` string used to denote missing values. Furthermore, a date array is created based on the number of months in the dataset, starting from January 1880. The raw temperature anomalies are then adjusted to calculate anomalies relative to the 1850-1900 baseline. Following the data source recommendation, the data are first adjusted to an 1880-1900 baseline and then shifted by 0.038°C to account for pre-1880 conditions^[https://data.giss.nasa.gov/gistemp/faq/#q102a].
 
 ```julia
-# Download the GISTEMP temperature data 
-# URL of the GISTEMP global monthly average CSV
-gurl = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts%2BdSST.csv"
-# Local filename to save
 gfilename = "data/GISTEMP_global_monthly_average.csv"
-# Download the file
 open(gfilename, "w") do io
-    write(io, HTTP.get(gurl).body)
+    write(io, HTTP.get("https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts%2BdSST.csv").body)
 end
-```
-
-The data is then cleaned from the `***` string used to denote missing values, and converts it to long format using the `longseries` function defined above. The resulting long-format array is stored in the `gistemp` variable.
-
-```julia
-# Removing missing values and converting to long format
 longgistemp = CSV.read(gfilename, DataFrame, header=2, missingstring=["***"])
-gistemp = longseries(longgistemp)[:]
-```
-
-A date array is created based on the number of months in the dataset, starting from January 1880. The raw temperature anomalies are then adjusted to calculate anomalies relative to the 1850-1900 baseline. Following the data source recommendation, the data are first adjusted to an 1880-1900 baseline and then shifted by 0.038°C to account for pre-1880 conditions^[https://data.giss.nasa.gov/gistemp/faq/#q102a].
-
-```julia
-# Build dates and compute adjusted anomalies for GISTEMP
-Tt = length(gistemp) - 1
-start = Date(1880, 1, 1) # Start date of the dataset
-fin = start + Month(Tt) # End date of the dataset
-dates = collect(start:Month(1):fin) # Create a Date array
-gistemp = DataFrame(:Date=>dates, :RawTemp=>gistemp)
-oldbase = mean(gistemp[(gistemp.Date.>=Date(1880, 1, 1)).&(gistemp.Date.<Date(1900, 1, 1)), :RawTemp])
-gistemp[!, :Temp] = gistemp[!, :RawTemp] .- oldbase .+ 0.038 # Adjust for pre-1880 data
+gistemp_long = longseries(longgistemp)[:]
+Tt = length(gistemp_long) - 1
+dates = collect(Date(1880, 1, 1):Month(1):Date(1880, 1, 1) + Month(Tt))
+gistemp = DataFrame(:Date=>dates, :RawTemp=>gistemp_long)
+gistemp[!, :Temp] = adjust_baseline(gistemp, :RawTemp, start_year=1880) .+ 0.038  # +0.038°C pre-1880 offset per GISS
 CSV.write(gfilename, gistemp)
-last(gistemp, 3) # Show the last 3 rows of the GISTEMP data
-```
-
-The CSV file with the processed GISTEMP data is now saved in the repository as `data/GISTEMP_global_monthly_average.csv`. 
-
-```{julia}
-#| echo: false
-#| output: true
-# Preview processed GISTEMP data
-gfilename = "data/GISTEMP_global_monthly_average.csv"
-gistemp = CSV.read(gfilename, DataFrame)
-last(gistemp, 3) # Show the last 3 rows of the GISTEMP data
 ```
 
 
 ## Berkeley Earth {#sec-BerkeleyEarth}
 
-The Berkeley Earth dataset [@BerkeleyEarth] is available in TXT format from [the Berkeley Earth website](https://berkeleyearth.org/) using space-delimited files. The code below downloads the data, processes it, and saves it in a CSV file.
+The Berkeley Earth dataset [@BerkeleyEarth] is available in TXT format from [the Berkeley Earth website](https://berkeleyearth.org/) using space-delimited files. 
 
 ```julia
-# Download the Berkeley Earth temperature data
-# URL of the Berkeley Earth global monthly average CSV
-burl = "https://storage.googleapis.com/berkeley-earth-temperature-hr/global/Global_TAVG_monthly.txt"
-# Local filename to save
 bfilename = "data/BerkeleyEarth_global_monthly_average.csv"
-# Download the file
 open(bfilename, "w") do io
-    write(io, HTTP.get(burl).body)
+    write(io, HTTP.get("https://storage.googleapis.com/berkeley-earth-temperature-hr/global/Global_TAVG_monthly.txt").body)
 end
-```
-
-A new variable is created to store the date, which is constructed from the year and month columns in the dataset. The raw temperature anomalies are then adjusted to calculate temperature anomalies relative to the 1850-1900 baseline, and the processed data are saved in a new CSV file, available at `data/BerkeleyEarth_global_monthly_average.csv` in the repository. The last line shows the last 3 rows of the processed Berkeley Earth data.
-
-```julia
-# Read, rename, and baseline-adjust Berkeley Earth data
 rawtemp = CSV.read(bfilename, DataFrame, comment="%", delim=" ", ignorerepeated=true)
-colnames = [:Year, :Month, :Anomaly_Monthly, :Unc_Monthly,
-            :Anomaly_Annual, :Unc_Annual, :Anomaly_5yr, :Unc_5yr,
-            :Anomaly_10yr, :Unc_10yr, :Anomaly_20yr, :Unc_20yr]
-rename!(rawtemp, colnames)
-rawtemp.Date = Date.(rawtemp.Year, rawtemp.Month, 1) # Create Date column from Year and Month
-rename!(rawtemp, :Anomaly_Monthly => :RawTemperature)
-berkeley = rawtemp[!, [:Date, :RawTemperature]]
-oldbase = mean(rawtemp[(rawtemp.Date.>=Date(1850, 1, 1)).&(rawtemp.Date.<Date(1900, 1, 1)), :RawTemperature])
-rawtemp[!, :Temp] = rawtemp[!, :RawTemperature] .- oldbase
-berkeley.Temp = rawtemp.Temp
+rename!(rawtemp, [:Year, :Month, :Anomaly_Monthly, :Unc_Monthly, :Anomaly_Annual,
+ :Unc_Annual, :Anomaly_5yr, :Unc_5yr, :Anomaly_10yr, :Unc_10yr, :Anomaly_20yr, :Unc_20yr])
+rawtemp.Date = Date.(rawtemp.Year, rawtemp.Month, 1)
+rawtemp.Temp = adjust_baseline(rawtemp, :Anomaly_Monthly)
+berkeley = rawtemp[!, [:Date, :Anomaly_Monthly, :Temp]]
+rename!(berkeley, :Anomaly_Monthly => :RawTemperature)
 CSV.write(bfilename, berkeley)
-last(berkeley, 3) # Show the last 3 rows of the Berkeley Earth data
 ```
-
-```{julia}
-#| echo: false
-#| output: true
-# Preview processed Berkeley Earth data
-bfilename = "data/BerkeleyEarth_global_monthly_average.csv"
-berkeley = CSV.read(bfilename, DataFrame)
-last(berkeley, 3) # Show the last 3 rows of the Berkeley Earth data
-```
+Note that a new variable is created to store the date, which is constructed from the year and month columns in the dataset.
 
 
 ## ERA5 {#sec-ERA5}
 
+
 ERA5 is the fifth generation ECMWF reanalysis for the global climate and weather [@ERA5]. Data is available from 1940 in NetCDF format from the [Copernicus Climate Data Store](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means?tab=overview). 
 
-The API requires setting up a personal key in a `.cdsapirc` file, which should be placed in the root directory of the project. You can get a key by requesting it at the [Copernicus Climate Data Store website](https://cds.climate.copernicus.eu/). The code below assumes that you have already set up the `.cdsapirc` file with your key. The `CDSAPI` package is used to interact with the Copernicus Climate Data Store API and download the data.  To obtain the full dataset, the whole period from 1940 to 2026 is requested, but the file is large, close to 1.5 GB. For update purposes, the code can be modified to request a smaller period, for example, from 2020 to present. The code also specifies the variable to download (2m temperature), the time resolution (monthly), and the data format (NetCDF). 
- 
+The API requires setting up a personal key in a `.cdsapirc` file, which should be placed in the root directory of the project. You can get a key by requesting it at the [Copernicus Climate Data Store website](https://cds.climate.copernicus.eu/). The code below assumes that you have already set up the `.cdsapirc` file with your key. To obtain the full dataset, the whole period from 1940 to 2026 is requested, but the file is large, close to 1.5 GB. For update purposes, the code can be modified to request a smaller period, for example, from 2020 to present. The code also specifies the variable to download (2m temperature), the time resolution (monthly), and the data format (NetCDF). 
 
 ```julia
-# Download the ERA5 temperature data
+# Download ERA5 and compute global mean by month
 dataset = "reanalysis-era5-single-levels-monthly-means"
-request = """{
-    "product_type": ["monthly_averaged_reanalysis"],
-    "variable": ["2m_temperature"],
-    "year": [
-        "1940", "1941", "1942", "1943", "1944", "1945", "1946", "1947", "1948", "1949", 
+request = """{"product_type": ["monthly_averaged_reanalysis"], "variable": ["2m_temperature"],
+    "year": ["1940", "1941", "1942", "1943", "1944", "1945", "1946", "1947", "1948", "1949", 
         "1950", "1951", "1952", "1953", "1954", "1955", "1956", "1957", "1958", "1959",
         "1960", "1961", "1962", "1963", "1964", "1965", "1966", "1967", "1968", "1969",
         "1970", "1971", "1972", "1973", "1974", "1975", "1976", "1977", "1978", "1979",
@@ -310,335 +196,197 @@ request = """{
         "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999",
         "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009",
         "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019",
-        "2020", "2021", "2022", "2023", "2024", "2025", "2026"
-    ],
-    "month": [ "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12" ],
-    "time": ["00:00"],
-    "data_format": "netcdf",
-    "download_format": "unarchived"
-}"""
+        "2020", "2021", "2022", "2023", "2024", "2025", "2026"],
+    "month": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
+    "time": ["00:00"], "data_format": "netcdf", "download_format": "unarchived"}"""
 CDSAPI.retrieve(dataset, request, "data/era5_2m_temperature.nc")
 ```
 
-Once the data is downloaded, we can use the `NCDatasets` package to read the NetCDF file and process the data. The code below reads the data, extracts the latitude, longitude, time, and temperature variables.
+The next code snippet computes monthly global mean temperature from gridded ERA5 data. Latitude weights are based on the cosine of latitude to account for grid-cell area differences, so high-latitude cells receive less weight than equatorial cells. ERA5 values are reported in Kelvin and are converted to degrees Celsius.
+
 
 ```julia
-# Read ERA5 NetCDF metadata and time axis
 filename = "data/era5_2m_temperature.nc"
 ds = NCDataset(filename, "r")
 lat_era = ds["latitude"][:]
 time_era = ds["valid_time"][:]
 date_era = Date.(time_era)
-```
 
-The next code snippet computes monthly global mean temperature from gridded ERA5 data. Because this step is computationally intensive, data are processed in chunks of 120 months to control memory use.
-
-Latitude weights are based on the cosine of latitude to account for grid-cell area differences, so high-latitude cells receive less weight than equatorial cells. ERA5 values are reported in Kelvin and are converted to degrees Celsius.
-
-
-```julia
-# Calculate the global average temperature anomaly for each month
-ini = 1
-chunk_size = 120 # Number of months to skip for plotting
 global_mean_C = zeros(length(date_era))
 weights = cos.(lat_era * π / 180)
-while ini <= length(date_era)
-    last_idx = min(ini + chunk_size - 1, length(date_era))
-    for i in ini:last_idx
-        t2m = ds["t2m"][:, :, i]  # 2D slice [lon, lat] for first time; in K
-        t_lon_mean = mean(t2m, dims=1)  # [lat]; drops new dim=2
-        global_mean_K = sum(t_lon_mean' .* weights) / sum(weights)
-        global_mean_C[i] = global_mean_K - 273.15
-    end
-    ini = ini + chunk_size
+for i in 1:length(date_era)
+    t2m = ds["t2m"][:, :, i]  # [lon, lat] in K
+    global_mean_K = sum(mean(t2m, dims=1)' .* weights) / sum(weights)
+    global_mean_C[i] = global_mean_K - 273.15
 end
 ```
 
 Once the monthly global mean temperatures are calculated, anomalies can be computed relative to the 1850-1900 baseline. Unlike the other datasets, ERA5 does not provide a fixed baseline period, so we first compute monthly climatology over 1991-2020 and then derive anomalies relative to that reference. Finally, we add an offset to approximate pre-industrial anomalies and save the processed data.^[The ERA5 pre-industrial offset (currently `0.88`) is obtained from the [ERA5 documentation](https://climate.copernicus.eu/climate-bulletin-about-data-and-analysis#Referenceperiodsandothertimerelateddefinitions).]
 
-
 ```julia
-# Obtain temperature anomalies relative to the 1850-1900 baseline
-time_dates = Date.(ds["valid_time"][:])  # If not already
+time_dates = date_era
 start_1991 = findfirst(≥(Date(1991,1,1)), time_dates)
 end_2020 = findfirst(≥(Date(2021,1,1)), time_dates) - 1
-# Compute monthly climatology for 1991-2020
-month_clim = zeros(12)
-for m in 1:12
-    idx = (month.(time_dates[start_1991:end_2020]) .== m)
-    month_clim[m] = mean(global_mean_C[start_1991:end_2020][idx])
-end
+month_clim = [mean(global_mean_C[start_1991:end_2020]
+[month.(time_dates[start_1991:end_2020]).==m]) for m in 1:12]
 anom_1991_2020 = global_mean_C .- month_clim[month.(time_dates)]
-offset_preind = 0.88  # Latest ERA5-to-1850-1900
-pa_anom = anom_1991_2020 .+ offset_preind
+pa_anom = anom_1991_2020 .+ 0.88  # Pre-industrial offset
 era5 = DataFrame(Date=time_dates, RawTemperature=anom_1991_2020, Temp=pa_anom)
 CSV.write("data/ERA5_global_monthly_average.csv", era5)
 ```
 
-The snippet below reads the processed ERA5 data from the CSV file and shows the last 3 rows of the data.
-
-```julia
-# Read processed ERA5 table and preview recent values
-erafilename = "data/ERA5_global_monthly_average.csv"
-era5 = CSV.read(erafilename, DataFrame)
-last(era5, 3) # Show the last 3 rows of the ERA5 data
-```
-
-```{julia}
-#| echo: false
-#| output: true
-# Preview processed ERA5 data
-efilename = "data/ERA5_global_monthly_average.csv"
-era5 = CSV.read(efilename, DataFrame)
-last(era5, 3) # Show the last 3 rows of the ERA5 data
-```
-
 ## Oceanic Niño Index (ONI) {#sec-ONI}
 
-El Niño (La Niña) is identified when the 3-month running mean of sea surface temperature anomalies in the Niño 3.4 region remains above +0.5°C (below -0.5°C) for at least five consecutive overlapping seasons.
-
-The data is obtained from the Extended Reconstructed Sea Surface Temperature (ERSST) dataset, which is a global monthly analysis of sea surface temperature data derived from the International Comprehensive Ocean–Atmosphere Dataset (ICOADS) [@SST_Part1; @SST_Part2]. The ONI data is available in text format from [the NOAA Climate Monitoring website](https://www.ncei.noaa.gov/access/monitoring/enso/) [@NOAA_ONI]. The ONI dataset is provided in a space-delimited format. The code below reads the data, processes it, and saves it in a CSV file. The last line shows the last 3 rows of the processed ONI data.
+El Niño (La Niña) is defined as the 3-month running mean of sea surface temperature anomalies in Niño 3.4 region exceeding +0.5°C (or below −0.5°C) for five consecutive overlapping seasons. The data is obtained from the Extended Reconstructed Sea Surface Temperature (ERSST) dataset, which is a global monthly analysis of sea surface temperature data derived from the International Comprehensive Ocean–Atmosphere Dataset (ICOADS) [@SST_Part1; @SST_Part2]. The ONI data is available in text format from [the NOAA Climate Monitoring website](https://www.ncei.noaa.gov/access/monitoring/enso/) [@NOAA_ONI]. The ONI dataset is provided in a space-delimited format.
 
 ```julia
-# Download the ONI data
-ourl = "https://www.cpc.ncep.noaa.gov/data/indices/sstoi.indices"
 ofilename = "data/Nino_data.csv"
 open(ofilename, "w") do io
-    write(io, HTTP.get(ourl).body)
+    write(io, HTTP.get("https://www.cpc.ncep.noaa.gov/data/indices/sstoi.indices").body)
 end
-lines = readlines(ofilename)
-cleaned_lines = [join(split(strip(line)), ",") for line in lines]
-# Write to file
-write(ofilename, join(cleaned_lines, "\n"))
+# Convert space-delimited to CSV
+write(ofilename, join([join(split(strip(line)), ",") for line in readlines(ofilename)], "\n"))
 rawoni = CSV.read(ofilename, DataFrame; delim=',', header=1)
-dates = Date.(rawoni.YR, rawoni.MON, 1) # Create Date column from YR and MON
-oni = DataFrame(Date=dates, Anom=rawoni[!, :ANOM_3])
+oni = DataFrame(Date=Date.(rawoni.YR, rawoni.MON, 1), Anom=rawoni[!, :ANOM_3])
 CSV.write(ofilename, oni)
-last(oni, 3) # Show the last 3 rows of the ONI data
 ```
 
-```{julia}
-#| echo: false
-#| output: true
-# Preview processed ONI data
-ofilename = "data/Nino_data.csv"
-oni = CSV.read(ofilename, DataFrame)
-last(oni, 3) # Show the last 3 rows of the ONI data
-```
+## Merge Datasets {#sec-merge-all-datasets}
 
-The ONI dataset is now saved in the repository as [`Nino_data.csv`](data/Nino_data.csv). The data contains the date and the ONI anomaly values, which will be used to annotate El Niño and La Niña phases in the visualisations.
-
-## Merge all datasets {#sec-merge-all-datasets}
-
-Once all datasets are processed and saved as CSV files, we merge them into a single table for analysis and visualisation. The code below reads each dataset, merges them on `Date` with `leftjoin`, and renames columns for clarity. The resulting dataset contains temperature anomalies for each source alongside ONI. 
-
+Merge all processed datasets on `Date` to create a unified table for cross-dataset comparison and ENSO-aware trend analysis:
 
 ```julia
-# Load the datasets
 hadcrut = CSV.read("data/HadCRUT5_global_monthly_average.csv", DataFrame)
 gistemp = CSV.read("data/GISTEMP_global_monthly_average.csv", DataFrame)
 noaa = CSV.read("data/NOAA_global_monthly_average.csv", DataFrame)
 berkeley = CSV.read("data/BerkeleyEarth_global_monthly_average.csv", DataFrame)
 era5 = CSV.read("data/ERA5_global_monthly_average.csv", DataFrame)
 oni = CSV.read("data/Nino_data.csv", DataFrame)
-# Dates
+# Create date range spanning all datasets
 min_date = minimum([minimum(hadcrut.Date), minimum(gistemp.Date), minimum(noaa.Date), minimum(berkeley.Date), minimum(oni.Date)])
 max_date = maximum([maximum(hadcrut.Date), maximum(gistemp.Date), maximum(noaa.Date), maximum(berkeley.Date), maximum(oni.Date)])
-complete_dates = collect(min_date:Month(1):max_date)
-compiled_data = DataFrame(Date=complete_dates)
-# Merge temperature datasets and standardise column names
-merge_specs = [
-    (hadcrut, :RawTemperature => :HadCRUT_RawTemperature, :Temp => :HadCRUT_Temp),
-    (gistemp, :RawTemp => :GISTEMP_RawTemperature, :Temp => :GISTEMP_Temp),
-    (noaa, :RawTemp => :NOAA_RawTemperature, :Temp => :NOAA_Temp),
-    (berkeley, :RawTemperature => :Berkeley_RawTemperature, :Temp => :Berkeley_Temp),
-    (era5, :RawTemperature => :ERA5_RawTemperature, :Temp => :ERA5_Temp),
+compiled_data = DataFrame(Date=collect(min_date:Month(1):max_date))
+
+# Merge datasets with standardized column names
+for (df, cols, prefix) in [
+    (hadcrut, (:RawTemperature, :Temp), "HadCRUT"),
+    (gistemp, (:RawTemp, :Temp), "GISTEMP"),
+    (noaa, (:RawTemp, :Temp), "NOAA"),
+    (berkeley, (:RawTemperature, :Temp), "Berkeley"),
+    (era5, (:RawTemperature, :Temp), "ERA5")
 ]
-for (df, raw_map, temp_map) in merge_specs
-    compiled_data = leftjoin(compiled_data, df, on=:Date)
-    rename!(compiled_data, raw_map)
-    rename!(compiled_data, temp_map)
+    df_subset = select(df, :Date, cols[1] => Symbol(prefix*"_RawTemperature"), cols[2] => Symbol(prefix*"_Temp"))
+    compiled_data = leftjoin(compiled_data, df_subset, on=:Date)
 end
-# Merge ONI data
-compiled_data = leftjoin(compiled_data, oni, on=:Date)
-rename!(compiled_data, :Anom => :ONI_Anomaly)
+# Merge ONI
+compiled_data = leftjoin(compiled_data, select(oni, :Date, :Anom => :ONI_Anomaly), on=:Date)
 sort!(compiled_data, :Date)
-# Save the compiled data
-compiled_filename = "data/Compiled_Global_Temperature_Data.csv"
-CSV.write(compiled_filename, compiled_data)
-last(compiled_data, 3) # Show the last 3 rows of the compiled data
+CSV.write("data/Compiled_Global_Temperature_Data.csv", compiled_data)
 ```
 
-```{julia}
-#| echo: false
-#| output: true
-# Preview merged dataset
-afilename = "data/Compiled_Global_Temperature_Data.csv"
-compiled = CSV.read(afilename, DataFrame)
-last(compiled, 3) # Show the last 3 rows of the compiled dataset
-```
+The compiled dataset contains aligned anomalies for all five sources plus ONI, supporting cross-dataset comparison and trend analysis.
 
-The compiled dataset is now saved in the repository as [`Compiled_Global_Temperature_Data.csv`](data/Compiled_Global_Temperature_Data.csv). The data contains the date, raw temperature anomalies for each dataset, and the temperature anomalies relative to the 1850-1900 baseline. It also includes ONI anomalies. The merged dataset makes it easier to compare trends across datasets, assess progress towards the goals of the Paris Agreement, and annotate ENSO phases in the visualisations.
+## Plot the Data {#sec-plot-data}
 
-## Plot the data {#sec-plot-data}
-
-Once the data are compiled, we can proceed to visualise them. The code below loads the compiled dataset and sets plot aesthetics using the `Plots` package. The `theme(:ggplot2)` function sets the overall style, while `default` sets the font family and sizes for ticks, legend, title, and axis labels. The x-axis ticks are shown every 180 months (15 years) for readability.
+Load the compiled dataset and visualize all five temperature series:
 
 ```julia
-# Load the compiled data and plot packages
-compiled_data = CSV.read(compiled_filename, DataFrame)
-# Set plot aesthetics
+compiled_data = CSV.read("data/Compiled_Global_Temperature_Data.csv", DataFrame)
 theme(:ggplot2)
-default(
-    fontfamily = "Computer Modern", titlefontfamily = "Computer Modern", 
-    legendfontfamily = "Computer Modern", tickfontfamily = "Computer Modern",
-    tickfontsize = 10, legendfontsize = 10, titlefontsize = 12,
-    xlabelfontsize = 10, ylabelfontsize = 10,
-)
-# Extract the dates for x-axis ticks
-# This will be used for the x-axis ticks in the plot
-xls = compiled_data.Date
-```
+default(fontfamily = "Computer Modern", tickfontsize = 10, legendfontsize = 10,
+ titlefontsize = 12)
 
-The next chunk plots each dataset with a distinct marker shape and colour for clarity. The x-axis represents date (monthly), and the y-axis represents temperature anomaly in degrees Celsius.
-
-```julia
-# List of series specifications: (label, column name, marker shape)
+# Temperature series specifications: (label, column name, marker)
 series_specs = [
-    ("HadCRUT5", :HadCRUT_Temp, :circle), ("GISTEMP", :GISTEMP_Temp, :diamond),
-    ("NOAAGlobalTemp", :NOAA_Temp, :+), ("Berkeley Earth", :Berkeley_Temp, :xcross),
+    ("HadCRUT5", :HadCRUT_Temp, :circle),
+    ("GISTEMP", :GISTEMP_Temp, :diamond),
+    ("NOAAGlobalTemp", :NOAA_Temp, :+),
+    ("Berkeley Earth", :Berkeley_Temp, :xcross),
     ("ERA5", :ERA5_Temp, :star),
 ]
-# Plotting the first temperature data
+
+# Full time series plot
 p = plot(
-    compiled_data.Date,
-    compiled_data[!, series_specs[1][2]],
+    compiled_data.Date, compiled_data[!, series_specs[1][2]],
     title="Global Temperature Anomalies", label=series_specs[1][1],
     xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)",
-    linewidth=0.5, markershape=series_specs[1][3], markersize=1,
+    linewidth=0.5, markersize=1, markershape=series_specs[1][3]
 )
-# Plotting the remaining temperature data
+
 for (label, col, marker) in series_specs[2:end]
     plot!(compiled_data.Date, compiled_data[!, col], label=label, linewidth=0.5, markershape=marker, markersize=1)
 end
-# Set x-axis ticks every 180 months (15 years)
-plot!(legend=:topleft, xticks=(xls[1:180:end], Dates.format.(xls[1:180:end], "Y"))) # Set x-axis ticks every 180 months
+
+# Add x-axis ticks every 15 years
+plot!(legend=:topleft, xticks=(compiled_data.Date[1:180:end], Dates.format.(compiled_data.Date[1:180:end], "Y")))
 display(p)
 ```
 
 ![Global Temperature Anomalies](data/Global_Temperature_Anomalies.pdf){width="80%"}
 
-The plot shows that global temperature anomalies have increased over time, with a noticeable acceleration in recent decades. Furthermore, the plot indicates that the 1.5 °C threshold has already been exceeded in some months in recent years.
+### Zoom into Recent Trends {#sec-zoom-recent-trends}
 
-<!---
-The plot is saved as a PDF file as [`Global_Temperature_Anomalies.pdf`](data/Global_Temperature_Anomalies.pdf) and as a PNG file as [`Global_Temperature_Anomalies.png`](data/Global_Temperature_Anomalies.png).
-
-```julia
-# Save the plot
-savefig("data/Global_Temperature_Anomalies.pdf")
-savefig("data/Global_Temperature_Anomalies.png")
-```
---->
-
-### The last 30 years
-
-To better visualise recent trends in global temperature anomalies, we zoom in on the last 30 years of data, from January 1995 to the present. The code below filters the compiled dataset and creates a new plot with the same aesthetics as before.
+The plot shows accelerating warming and recent exceedance of the 1.5°C threshold in monthly anomalies. Zoom into the recent 30-year period to better visualize trends and ENSO variability:
 
 ```julia
-# Zoom in on the last 30 years of data
-compiled_data_zoomed = compiled_data[compiled_data.Date .>= Date(1995, 1, 1), :]
-# Plotting the zoomed-in data first dataset
+compiled_zoomed = compiled_data[compiled_data.Date .>= Date(1995, 1, 1), :]
+
+# 30-year plot
 p_zoomed = plot(
-    compiled_data_zoomed.Date,
-    compiled_data_zoomed[!, series_specs[1][2]],
+    compiled_zoomed.Date, compiled_zoomed[!, series_specs[1][2]],
     title="Global Temperature Anomalies (Last 30 Years)", label=series_specs[1][1],
     xlabel="Date (monthly)", ylabel="Temperature Anomaly (°C)",
     linewidth=0.5, markershape=series_specs[1][3], markersize=1,
 )
-# Plotting the remaining temperature data
+
 for (label, col, marker) in series_specs[2:end]
-    plot!(compiled_data_zoomed.Date, compiled_data_zoomed[!, col], label=label, linewidth=0.5, markershape=marker, markersize=1)
+    plot!(compiled_zoomed.Date, compiled_zoomed[!, col], label=label, linewidth=0.5, markershape=marker, markersize=1)
 end
-# Set x-axis ticks every 60 months (5 years) for the zoomed plot
-plot!(legend=:topleft, xticks=(compiled_data_zoomed.Date[1:60:end], Dates.format.(compiled_data_zoomed.Date[1:60:end], "Y")))
+
+plot!(legend=:topleft, xticks=(compiled_zoomed.Date[1:60:end], Dates.format.(compiled_zoomed.Date[1:60:end], "Y")))
 display(p_zoomed)
 ```
 
 ![Global Temperature Anomalies (Last 30 Years)](data/Global_Temperature_Anomalies_Last_30_Years.pdf){width="80%"}
 
-The figure shows periods of rapid warming superimposed on shorter-term fluctuations, many of which are associated with ENSO variability. To make this relationship explicit, the next section overlays El Niño and La Niña phases.
+### Adding ENSO Phases {#sec-Adding-ONI}
 
-<!---
-Similar to the previous plot, the figure can be saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years.pdf`](data/Global_Temperature_Anomalies_Last_30_Years.pdf) and as a PNG file as [`Global_Temperature_Anomalies_Last_30_Years.png`](data/Global_Temperature_Anomalies_Last_30_Years.png).
-
-```julia
-# Save the zoomed plot
-savefig("data/Global_Temperature_Anomalies_Last_30_Years.pdf")
-savefig("data/Global_Temperature_Anomalies_Last_30_Years.png")
-```
---->
-
-### Adding El Niño and La Niña events {#sec-Adding-ONI}
-
-To add the periods of El Niño and La Niña events to the plot, we will create an indicator variable based on the ONI anomalies. An El Niño event is defined as a period when the ONI anomaly is above +0.5°C, a La Niña event is defined as a period when the ONI anomaly is below -0.5°C, and a Neutral event is defined as a period when the ONI anomaly is between -0.5°C and +0.5°C. The code below classifies the ONI anomalies into these three categories and creates an indicator variable that takes the value of 1 for El Niño events, -1 for La Niña events, and 0 for Neutral events.
+Overlay El Niño and La Niña events on the 30-year plot to distinguish ENSO variability from underlying warming. Classify ONI values into three categories: El Niño (≥+0.5°C, red shading), La Niña (≤−0.5°C, blue shading), and Neutral (between).
 
 ```julia
-# Classify into El Niño, La Niña, and Neutral events
-ONI_Anomaly = compiled_data_zoomed.ONI_Anomaly[.!ismissing.(compiled_data_zoomed.ONI_Anomaly)]
-T = length(ONI_Anomaly)
-indicator = zeros(Int, T)
-# Classify ONI anomalies into El Niño, La Niña, and Neutral events
-for i in 1:T
-    if ONI_Anomaly[i] >= 0.5
-        indicator[i] = 1
-    elseif ONI_Anomaly[i] <= -0.5
-        indicator[i] = -1
-    else
-        indicator[i] = 0
+# Classify ONI into El Niño, La Niña, and Neutral phases
+ONI_Anom = compiled_zoomed.ONI_Anomaly[.!ismissing.(compiled_zoomed.ONI_Anomaly)]
+indicator = zeros(Int, length(ONI_Anom))
+for i in 1:length(ONI_Anom)
+    if ONI_Anom[i] >= 0.5
+        indicator[i] = 1  # El Niño
+    elseif ONI_Anom[i] <= -0.5
+        indicator[i] = -1  # La Niña
     end
 end
-```
 
-Once we have defined the indicator variable, we can proceed to add the shaded areas to the plot for the identified El Niño and La Niña events. The code below iterates through the `indicator` array to identify the start and stop indices of El Niño and La Niña events. It uses the `vspan!` function to add vertical shaded areas to the plot for each identified event, with red shading for El Niño events and blue shading for La Niña events. The alpha parameter is set to 0.1 to make the shaded areas semi-transparent, allowing the temperature anomaly lines to remain visible. The bars are added to the existing plot `p_zoomed` which shows the global temperature anomalies for the last 30 years. Finally, the updated plot is displayed.
-
-```julia
-# Shade El Niño and La Niña intervals on the zoomed plot
-p_zoomed_oni = p_zoomed
+# Add shaded regions for ENSO phases to the zoomed plot
+p_oni = copy(p_zoomed)
 i = 1
 while i <= length(indicator)
-    current_val = indicator[i]
-    if current_val in (-1, 1)
+    if indicator[i] in (-1, 1)
         start_idx = i
-        while i <= length(indicator) && indicator[i] == current_val
-            i = i + 1
+        while i <= length(indicator) && indicator[i] == indicator[start_idx]
+            i += 1
         end
         stop_idx = i - 1
-        if (stop_idx <= start_idx) || (stop_idx - start_idx < 4)
-            continue
-        else
-            vspan!(p_zoomed_oni, [compiled_data_zoomed.Date[start_idx], compiled_data_zoomed.Date[stop_idx]], color=current_val == 1 ? :red : :blue, alpha=0.1, label ="")
+        if stop_idx - start_idx >= 3  # Minimum duration filter
+            color = indicator[start_idx] == 1 ? :red : :blue
+            vspan!(p_oni, [compiled_zoomed.Date[start_idx], compiled_zoomed.Date[stop_idx]], color=color, alpha=0.1, label="")
         end
     else
-        i = i + 1
+        i += 1
     end
 end
-display(p_zoomed_oni)
+display(p_oni)
 ```
 
-![Global Temperature Anomalies (Last 30 Years) with ONI Events](data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf){width="80%"}
-
-The plot now shows global temperature anomalies over the last 30 years with shaded El Niño (red) and La Niña (blue) intervals based on ONI. This overlay clarifies how short-term temperature swings co-move with ENSO phases and improves interpretation of the underlying warming trend.
-
-<!---
-
-This last plot can also be saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years_ONI.pdf`](data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf) and as a PNG file as [`Global_Temperature_Anomalies_Last_30_Years_ONI.png`](data/Global_Temperature_Anomalies_Last_30_Years_ONI.png).
-
-```julia
-# Save the plot with ONI events
-savefig("data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf")
-savefig("data/Global_Temperature_Anomalies_Last_30_Years_ONI.png")
-```
--->
+![Global Temperature Anomalies with ENSO Phases](data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf){width="80%"}
 
 
 ## Conclusions
