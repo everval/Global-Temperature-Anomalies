@@ -10,7 +10,7 @@
 <meta name="dcterms.date" content="2026-06-25">
 <meta name="keywords" content="Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, ONI, El Niño, La Niña">
 
-<title>Global Temperature Anomalies</title>
+<title>Global Temperature Anomalies in Practice – Global Temperature Anomalies</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -185,8 +185,8 @@ div.csl-indent {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Global Temperature Anomalies</h1>
-<p class="subtitle lead">Data compilation</p>
+<h1 class="title">Global Temperature Anomalies in Practice</h1>
+<p class="subtitle lead">An Open, Reproducible Framework for Baseline Harmonisation and ENSO-Aware Visualisation</p>
 </div>
 
 
@@ -223,7 +223,7 @@ div.csl-indent {
 <div>
   <div class="abstract">
     <div class="block-title">Abstract</div>
-    <p>This notebook downloads and compiles the data used in the article <a href="https://everval.github.io/Odds-of-breaching-1.5C/">“Breaching 1.5°C: Give me the odds”</a> by <span class="citation" data-cites="vera-valdés2024">Vera-Valdés and Kvist (<a href="#ref-vera-valdés2024" role="doc-biblioref">2024</a>)</span>. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.</p>
+    <p>We present a reproducible pipeline for downloading, processing, and harmonising global temperature anomaly series from HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ERA5. All datasets are aligned to a common 1850-1900 pre-industrial baseline to enable direct compar-ison. The workflow also integrates the Oceanic Niño Index (ONI) to annotate El Niño and La Niña phases in the figures, helping distinguish short-term variability from the long-term warming signal. Final outputs are exported as transparent, analysis-ready CSV files, available through the repository.</p>
   </div>
 </div>
 
@@ -678,28 +678,22 @@ div.csl-indent {
 <div id="14" class="cell" data-execution_count="1">
 <div class="cell-output cell-output-stdout">
 <div class="ansi-escaped-output">
-<pre><span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:48:57.973
+<pre><span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:56:12.963
 <span class="ansi-cyan-fg ansi-bold">│ </span>  dataset = "reanalysis-era5-single-levels-monthly-means"
 <span class="ansi-cyan-fg ansi-bold">└ </span>  status = "accepted"
-<span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:49:12.418
+<span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:56:26.335
 <span class="ansi-cyan-fg ansi-bold">│ </span>  dataset = "reanalysis-era5-single-levels-monthly-means"
 <span class="ansi-cyan-fg ansi-bold">└ </span>  status = "running"
-<span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:49:13.479
-<span class="ansi-cyan-fg ansi-bold">│ </span>  dataset = "reanalysis-era5-single-levels-monthly-means"
-<span class="ansi-cyan-fg ansi-bold">└ </span>  status = "accepted"
-<span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:49:14.545
-<span class="ansi-cyan-fg ansi-bold">│ </span>  dataset = "reanalysis-era5-single-levels-monthly-means"
-<span class="ansi-cyan-fg ansi-bold">└ </span>  status = "running"
-<span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:49:16.700
+<span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>CDS request update on 2026-06-25T14:56:31.427
 <span class="ansi-cyan-fg ansi-bold">│ </span>  dataset = "reanalysis-era5-single-levels-monthly-means"
 <span class="ansi-cyan-fg ansi-bold">└ </span>  status = "successful"
 <span class="ansi-cyan-fg ansi-bold">┌ </span><span class="ansi-cyan-fg ansi-bold">Info: </span>Downloading
-<span class="ansi-cyan-fg ansi-bold">│ </span>  source = "https://object-store.os-api.cci2.ecmwf.int:443/cci2-prod-cache-1/2026-06-25/947adaebe0cabd127daf516761ba1f90.nc"
+<span class="ansi-cyan-fg ansi-bold">│ </span>  source = "https://object-store.os-api.cci2.ecmwf.int:443/cci2-prod-cache-2/2026-06-25/9bcabd27ff6d7863763d099b11e1d772.nc"
 <span class="ansi-cyan-fg ansi-bold">│ </span>  dest = "data/era5_2m_temperature.nc"
 <span class="ansi-cyan-fg ansi-bold">│ </span>  progress = 1.0
-<span class="ansi-cyan-fg ansi-bold">│ </span>  time_taken = "0.56 s"
+<span class="ansi-cyan-fg ansi-bold">│ </span>  time_taken = "0.83 s"
 <span class="ansi-cyan-fg ansi-bold">│ </span>  time_remaining = "0.0 s"
-<span class="ansi-cyan-fg ansi-bold">│ </span>  average_speed = "11.705 MiB/s"
+<span class="ansi-cyan-fg ansi-bold">│ </span>  average_speed = "7.921 MiB/s"
 <span class="ansi-cyan-fg ansi-bold">│ </span>  downloaded = "6.567 MiB"
 <span class="ansi-cyan-fg ansi-bold">│ </span>  remaining = "0 bytes"
 <span class="ansi-cyan-fg ansi-bold">└ </span>  total = "6.567 MiB"
@@ -710,12 +704,12 @@ div.csl-indent {
 <pre><code>JSON.Object{String, Any} with 10 entries:
   "processID" =&gt; "reanalysis-era5-single-levels-monthly-means"
   "type"      =&gt; "process"
-  "jobID"     =&gt; "023e207a-9796-4e54-8fd5-77013bd96185"
+  "jobID"     =&gt; "287a7b01-b8a6-43b9-b50a-85ce951634f6"
   "status"    =&gt; "successful"
-  "created"   =&gt; "2026-06-25T12:48:57.815228"
-  "started"   =&gt; "2026-06-25T12:49:10.907431"
-  "finished"  =&gt; "2026-06-25T12:49:15.647712"
-  "updated"   =&gt; "2026-06-25T12:49:15.647712"
+  "created"   =&gt; "2026-06-25T12:56:11.924428"
+  "started"   =&gt; "2026-06-25T12:56:26.132475"
+  "finished"  =&gt; "2026-06-25T12:56:30.369834"
+  "updated"   =&gt; "2026-06-25T12:56:30.369834"
   "links"     =&gt; Any[Object{String, Any}("href"=&gt;"https://cds.climate.copernicu…
   "metadata"  =&gt; Object{String, Any}("datasetMetadata"=&gt;Object{String, Any}("ca…</code></pre>
 </div>
@@ -1383,14 +1377,24 @@ Vera-Valdés, J. Eduardo, and Olivia Kvist. 2024. <span>“Breaching <span>1.5°
 <section id="citation" class="level2">
 <h2 class="anchored" data-anchor-id="citation">Citation</h2>
 <p>If you use any of the data or code in this notebook, please cite the original datasets and this notebook as follows:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">vera</span>-<span class="ot">vald</span>é<span class="ot">s2024</span>,</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span> = {Vera-Valdés, J. Eduardo and Kvist, Olivia},</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span> = {Breaching 1.5°C: Give Me the Odds},</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {arXiv},</span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">date</span> = {2024-12-17},</span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span> = {https://arxiv.org/abs/2412.13855},</span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span> = {10.48550/arXiv.2412.13855}</span>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">Text</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">BibTex</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-1-1-tab">
+<p>Vera-Valdés, J.E. (2026). “Global Temperature Anomalies in Practice”. <a href="https://eartharxiv.org/repository/view/13310/">EarthArXiv (13310)</a> DOI: 10.31223/X56N3Z.</p>
+</div>
+<div id="tabset-1-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-2-tab">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">vera</span>-<span class="ot">valdesGlobalTemperatureAnomalies</span>,</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">title</span> = {Global Temperature Anomalies in Practice},</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">author</span> = {Vera-Valdés, J Eduardo},</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span> = {2026},</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {EarthArXiv},</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span> = {10.31223/X56N3Z},</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span> = {https://doi.org/10.31223/X56N3Z}</span>
 <span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</div>
 
 
 </section>
