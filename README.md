@@ -1,5 +1,5 @@
 This notebook downloads the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by J.E. Vera-Valdés and O. Kvist. 
-It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ONI datasets. 
+It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, and ONI datasets. 
 
 The rendered notebook can be found [here](https://everval.github.io/Global-Temperature-Anomalies/). It shows the code so that you can easily use whichever dataset you want. The data is downloaded in CSV format and directly accessible from the notebook. 
 
@@ -19,16 +19,15 @@ Finally, the notebook includes code to plot the data and highlight El Niño and 
 
 If you use this notebook, please cite it as:
 
-Vera-Valdés, J. Eduardo, and Olivia Kvist. 2024. “Breaching 1.5°C: Give Me the Odds.” arXivarXiv:2412.13855. [https://doi.org/10.48550/arXiv.2412.13855](https://doi.org/10.48550/arXiv.2412.13855).
+Vera-Valdés, J.E. (2026). "Global Temperature Anomalies in Practice". [EarthArXiv (13310)](https://eartharxiv.org/repository/view/13310/) DOI: 10.31223/X56N3Z.
 
 ```bibtex
-@misc{veravaldes2024breaching,
-      title={Breaching 1.5{\deg}C: Give me the odds}, 
-      author={J. Eduardo Vera-Valdés and Olivia Kvist},
-      year={2024},
-      eprint={2412.13855},
-      archivePrefix={arXiv},
-      primaryClass={stat.AP},
-      url={https://arxiv.org/abs/2412.13855}, 
+@article{vera-valdesGlobalTemperatureAnomalies,
+      title = {Global Temperature Anomalies in Practice},
+      author = {Vera-Valdés, J Eduardo},
+      year = {2026},
+      journal = {EarthArXiv},
+      doi = {10.31223/X56N3Z},
+      url = {https://doi.org/10.31223/X56N3Z}
 }
 ```
