@@ -1,6 +1,6 @@
 ---
-title: Global Temperature Anomalies
-subtitle: Data compilation 
+title: Global Temperature Anomalies in Practice
+subtitle: An Open, Reproducible Framework for Baseline Harmonisation and ENSO-Aware Visualisation
 date: today
 author:
   - name: J. Eduardo Vera-Valdés
@@ -16,7 +16,7 @@ author:
     orcid: 0000-0002-0337-8055
     corresponding: true
 abstract: |
-  This notebook downloads and compiles the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, and ONI datasets. For each dataset, the preindustrial level is computed making it easy to compare the temperature anomalies across datasets. The data is downloaded in CSV format and directly accessible from the notebook. At the end of the notebook, all data from the different sources is stored in a single CSV file. The notebook also includes code to plot the data and highlight El Niño and La Niña events.
+  We present a reproducible pipeline for downloading, processing, and harmonising global temperature anomaly series from HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, and ERA5. All datasets are aligned to a common 1850-1900 pre-industrial baseline to enable direct compar-ison. The workflow also integrates the Oceanic Niño Index (ONI) to annotate El Niño and La Niña phases in the figures, helping distinguish short-term variability from the long-term warming signal. Final outputs are exported as transparent, analysis-ready CSV files, available through the repository.
 keywords: [Global Temperature Anomalies, HadCRUT5, GISTEMP, NOAAGlobalTemp, Berkeley Earth, ERA5, ONI, El Niño, La Niña]
 execute:
   engine: julia
@@ -26,7 +26,6 @@ bibliography: library.bib
 ## Introduction
 
 This notebook downloads the data used in the article ["Breaching 1.5°C: Give me the odds"](https://everval.github.io/Odds-of-breaching-1.5C/) by @vera-valdés2024. It contains the code used to download the data from the [HadCRUT5](#sec-HadCRUT5), [GISTEMP](#sec-GISTEMP), [NOAAGlobalTemp](#sec-NOAAGlobalTemp), [Berkeley Earth](#sec-BerkeleyEarth), [ERA5](#sec-ERA5), and [ONI](#sec-ONI) datasets. 
-
 
 The notebook shows the code so that you can easily use whichever dataset you want. The data is downloaded in CSV format and directly accessible from the notebook. The data files are also stored in the [`data` folder](https://github.com/everval/Global-Temperature-Anomalies/tree/main/data). Each CSV file contains three columns: `Date`, `RawTemperature`, and `Temp`. The `Date` column contains the date of the temperature anomaly in months, the `RawTemperature` column contains the raw temperature anomaly according to the dataset, and the `Temp` column contains the temperature anomaly relative to the preindustrial level. The preindustrial level is defined as the average temperature anomaly from 1850 to 1900. The `Temp` column is calculated by subtracting the preindustrial level from the `RawTemperature` column. The ONI dataset contains two columns: `Date` and `Anom`, where `Anom` is the ONI anomaly.
 
@@ -167,7 +166,7 @@ Note that the url changes every month as new data is added: note the `...YYYYMM.
 ```{julia}
 # Download the NOAAGlobalTemp temperature data 
 # URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
-nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202602.asc"
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202605.asc"
 # Local filename to save
 nfilename = "data/NOAA_global_monthly_average.csv"
 
@@ -284,12 +283,37 @@ request = """{
     "download_format": "unarchived"
 }"""
 
-CDSAPI.retrieve(dataset, request, "data/era5_2m_temperature_2020.nc")
+CDSAPI.retrieve(dataset, request, "data/era5_2m_temperature.nc")
 ```
+
+
+```{julia}
+#| echo: false
+
+dataset = "reanalysis-era5-single-levels-monthly-means"
+
+request = """{
+    "product_type": ["monthly_averaged_reanalysis"],
+    "variable": ["2m_temperature"],
+    "year": [ "2026" ],
+    "month": [
+        "01", "02", "03",
+        "04", "05", "06",
+        "07", "08", "09",
+        "10", "11", "12"
+    ],
+    "time": ["00:00"],
+    "data_format": "netcdf",
+    "download_format": "unarchived"
+}"""
+
+CDSAPI.retrieve(dataset, request, "data/era5_2m_temperature.nc")
+```
+
 
 Once the data is downloaded, we can use the `NCDatasets` package to read the NetCDF file and process the data. The code below reads the data, extracts the latitude, longitude, time, and temperature variables, and calculates the global average temperature anomaly for each month.
 
-```julia
+```{julia}
 filename = "data/era5_2m_temperature.nc";
 ds = NCDataset(filename, "r");
 
@@ -302,15 +326,14 @@ lat = lat_era * π/180
 
 Processing the data is computationally intensive, so we will process the data in chunks of 120 months (10 years) to avoid memory issues. The code below calculates the global average temperature anomaly for each month and saves it in a CSV file. The temperature anomalies are calculated relative to the 1850-1900 baseline, which is estimated to be 0.88°C above the preindustrial level according to the latest ERA5 reanalysis [@ERA5].
 
-```julia
+```{julia}
 ini = 1
-chunk_size = 120 # Number of months to skip for plotting
+chunk_size = minimum([120, length(date_era) - ini + 1]) # Number of months to skip for plotting
 
-era5_chunk = DataFrame()
 global_mean_C = zeros(length(date_era))
 ```
 
-```julia
+```{julia}
 while ini < length(date_era)
 
 for i in ini:(ini+chunk_size-1)
@@ -326,20 +349,36 @@ display(global_mean_C[ini:(ini+chunk_size-1)])
 ini = ini + chunk_size
 
 end
+
+era_5_update = DataFrame(Date=date_era, RawTemperature=global_mean_C)
 ```
 
 ```julia
-display(global_mean_C)
+CSV.write("data/ERA5_global_monthly_average_raw.csv", era_5_update)
+```
 
-era5_raw = DataFrame(Date=date_era, RawTemperature=global_mean_C)
+```{julia}
+#| echo: false
+
+era_5_raw = CSV.read("data/ERA5_global_monthly_average_raw.csv", DataFrame)
+era5_raw = vcat(
+    filter(row -> row.Date < minimum(era_5_update.Date), era_5_raw),
+    era_5_update
+)
 
 CSV.write("data/ERA5_global_monthly_average_raw.csv", era5_raw)
 ```
 
+```{julia}
+#| echo: false
+
+time_dates = Date.(era5_raw.Date)
+```
+
 Once the monthly global mean temperature anomalies are calculated, we can calculate the temperature anomalies relative to the 1850-1900 baseline. The code below calculates the monthly climatology for the period 1991-2020 and then calculates the anomalies relative to this climatology. Finally, we add the offset to convert to preindustrial anomalies and save the data in a CSV file.
 
-```julia
-time_dates = Date.(ds["valid_time"][:])  # If not already
+```{julia}
+time_dates = Date.(era5_raw.Date)
 start_1991 = findfirst(≥(Date(1991,1,1)), time_dates)
 end_2020 = findfirst(≥(Date(2021,1,1)), time_dates) - 1
 n_clim = end_2020 - start_1991 + 1  # ~360
@@ -347,10 +386,10 @@ n_clim = end_2020 - start_1991 + 1  # ~360
 month_clim = zeros(12)
 for m in 1:12
     idx = (month.(time_dates[start_1991:end_2020]) .== m)
-    month_clim[m] = mean(global_mean_C[start_1991:end_2020][idx])
+    month_clim[m] = mean(era5_raw.RawTemperature[start_1991:end_2020][idx])
 end
 
-anom_1991_2020 = global_mean_C .- month_clim[month.(time_dates)]
+anom_1991_2020 = era5_raw.RawTemperature .- month_clim[month.(time_dates)]
 offset_preind = 0.88  # Latest ERA5-to-1850-1900; check HadCRUT5 [web:73]
 pa_anom = anom_1991_2020 .+ offset_preind
 
@@ -634,13 +673,24 @@ The plot is saved as a PDF file as [`Global_Temperature_Anomalies_Last_30_Years_
 
 If you use any of the data or code in this notebook, please cite the original datasets and this notebook as follows:
 
+::: {.panel-tabset}
+
+### Text
+
+Vera-Valdés, J.E. (2026). "Global Temperature Anomalies in Practice". [EarthArXiv (13310)](https://eartharxiv.org/repository/view/13310/) DOI: 10.31223/X56N3Z.
+
+### BibTex
+
 ```bibtex
-@article{vera-valdés2024,
-  author = {Vera-Valdés, J. Eduardo and Kvist, Olivia},
-  title = {Breaching 1.5°C: Give Me the Odds},
-  journal = {arXiv},
-  date = {2024-12-17},
-  url = {https://arxiv.org/abs/2412.13855},
-  doi = {10.48550/arXiv.2412.13855}
+@article{vera-valdesGlobalTemperatureAnomalies,
+    title = {Global Temperature Anomalies in Practice},
+	author = {Vera-Valdés, J Eduardo},
+    year = {2026},
+    journal = {EarthArXiv},
+    doi = {10.31223/X56N3Z},
+    url = {https://doi.org/10.31223/X56N3Z}
 }
+
 ```
+
+:::

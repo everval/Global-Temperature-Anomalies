@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite the paper below."
+type: article
+title: "Global Temperature Anomalies in Practice: An Open, Reproducible Framework for Baseline Harmonisation and ENSO-Aware Visualisation"
+authors:
+  - family-names: "Vera-Valdés"
+    given-names: "J. Eduardo"
+    orcid: "https://orcid.org/0000-0002-0337-8055"
+journal: "EarthArXiv"
+doi: "10.31223/X56N3Z"
+year: 2026
+url: "https://doi.org/10.31223/X56N3Z"
