@@ -9,7 +9,7 @@ website:
     search: false
     tools:
       - icon: file-earmark-code
-        href: https://everval.github.io/Odds-of-breaching-1.5C/
+        href: https://github.com/everval/Global-Temperature-Anomalies/blob/main/script.jl
         text: Article
       - icon: person-gear
         href: https://everval.github.io/
