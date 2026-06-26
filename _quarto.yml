@@ -2,8 +2,8 @@ project:
   type: website
 
 website:
-  title: "Global Temperature Anomalies"
-  description: "Data compilation for global temperature anomalies."
+  title: "Global Temperature Anomalies in Practice"
+  description: "An Open, Reproducible Framework for Global Temperature Anomalies Baseline Harmonisation and ENSO-Aware Visualisation"
   navbar:
     background: secondary
     search: false
@@ -24,3 +24,14 @@ format:
     html-math-method: katex
     theme: litera
     toc: true
+  typst:
+    font: "Computer Modern"
+    section-numbering: 1.1.1
+    paper: a4
+    numbering: true
+    margin:
+      x: 2cm
+      y: 2cm
+    include-before-body:
+      - text: |
+          #set par(justify: true)

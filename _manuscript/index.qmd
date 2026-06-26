@@ -322,13 +322,7 @@ plot!(legend=:topleft, xticks=(compiled_data.Date[1:180:end], Dates.format.(comp
 display(p)
 ```
 
-::: {.content-visible when-format="html"}
-![Global Temperature Anomalies](data/Global_Temperature_Anomalies.png){width="100%"}
-:::
-
-::: {.content-visible unless-format="html"}
-![Global Temperature Anomalies](data/Global_Temperature_Anomalies.pdf){width="100%"}
-:::
+![Global Temperature Anomalies](data/Global_Temperature_Anomalies.pdf){width="80%"}
 
 ### Zoom into Recent Trends {#sec-zoom-recent-trends}
 
@@ -353,14 +347,7 @@ plot!(legend=:topleft, xticks=(compiled_zoomed.Date[1:60:end], Dates.format.(com
 display(p_zoomed)
 ```
 
-::: {.content-visible when-format="html"}
-![Global Temperature Anomalies (Last 30 Years)](data/Global_Temperature_Anomalies_Last_30_Years.png){width="100%"}
-:::
-
-::: {.content-visible unless-format="html"}
-![Global Temperature Anomalies (Last 30 Years)](data/Global_Temperature_Anomalies_Last_30_Years.pdf){width="100%"}
-:::
-
+![Global Temperature Anomalies (Last 30 Years)](data/Global_Temperature_Anomalies_Last_30_Years.pdf){width="80%"}
 
 ### Adding ENSO Phases {#sec-Adding-ONI}
 
@@ -399,16 +386,7 @@ end
 display(p_oni)
 ```
 
-
-::: {.content-visible when-format="html"}
-![Global Temperature Anomalies with ENSO Phases](data/Global_Temperature_Anomalies_Last_30_Years_ONI.png){width="100%"}
-:::
-
-::: {.content-visible unless-format="html"}
-![Global Temperature Anomalies with ENSO Phases](data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf){width="100%"}
-:::
-
-
+![Global Temperature Anomalies with ENSO Phases](data/Global_Temperature_Anomalies_Last_30_Years_ONI.pdf){width="80%"}
 
 
 ## Conclusions
@@ -427,29 +405,14 @@ By combining harmonised anomaly series with ONI-based ENSO annotations, the fram
 ::: {#refs}
 :::
 
-
 ## Citation
 
 If you use any of the data or code in this notebook, please cite the original datasets and this notebook as follows:
 
-::: {.panel-tabset}
-
-### Text
-
-Vera-Valdés, J.E. (2026). "Global Temperature Anomalies in Practice". [EarthArXiv (13310)](https://eartharxiv.org/repository/view/13310/) DOI: 10.31223/X56N3Z.
-
-### BibTex
-
 ```bibtex
-@article{vera-valdesGlobalTemperatureAnomalies,
-    title = {Global Temperature Anomalies in Practice},
-	author = {Vera-Valdés, J Eduardo},
-    year = {2026},
-    journal = {EarthArXiv},
-    doi = {10.31223/X56N3Z},
-    url = {https://doi.org/10.31223/X56N3Z}
+@article{vera-valdes2026,
+  author = {Vera-Valdés, J. Eduardo},
+    title = {Global Temperature Anomalies in Practice: An Open, Reproducible Framework for Baseline Harmonisation and ENSO-Aware Visualisation},
+  journal = {Submitted to Visualising Climate 2026}
 }
-
 ```
-
-:::

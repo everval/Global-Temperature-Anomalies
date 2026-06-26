@@ -357,7 +357,9 @@ default(;
     ylabelfontsize=10,
     titlefontfamily="Computer Modern",
     legendfontfamily="Computer Modern",
-    tickfontfamily="Computer Modern"
+    tickfontfamily="Computer Modern",
+    size = (1000, 600),
+    margin=3mm
 );
 
 # Extract the dates for x-axis ticks
