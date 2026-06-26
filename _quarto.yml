@@ -24,6 +24,8 @@ format:
     html-math-method: katex
     theme: litera
     toc: true
+    grid:
+      body-width: 1100px
   typst:
     font: "Computer Modern"
     section-numbering: 1.1.1
