@@ -268,7 +268,7 @@ gistemp = CSV.read("data/GISTEMP_global_monthly_average.csv", DataFrame)
 noaa = CSV.read("data/NOAA_global_monthly_average.csv", DataFrame)
 berkeley = CSV.read("data/BerkeleyEarth_global_monthly_average.csv", DataFrame)
 era5 = CSV.read("data/ERA5_global_monthly_average.csv", DataFrame)
-oni = CSV.read("data/Nino_data.csv", DataFrame)
+oni = CSV.read("data/ONI_data.csv", DataFrame)
 # Create date range spanning all datasets
 min_date = minimum([minimum(hadcrut.Date), minimum(gistemp.Date), minimum(noaa.Date), minimum(berkeley.Date), minimum(oni.Date)])
 max_date = maximum([maximum(hadcrut.Date), maximum(gistemp.Date), maximum(noaa.Date), maximum(berkeley.Date), maximum(oni.Date)])
