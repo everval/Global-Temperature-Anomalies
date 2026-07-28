@@ -240,15 +240,22 @@ CSV.write("data/ERA5_global_monthly_average.csv", era5)
 El Niño (La Niña) is defined as the 3-month running mean of sea surface temperature anomalies in Niño 3.4 region exceeding +0.5°C (or below −0.5°C) for five consecutive overlapping seasons. The data is obtained from the Extended Reconstructed Sea Surface Temperature (ERSST) dataset, which is a global monthly analysis of sea surface temperature data derived from the International Comprehensive Ocean–Atmosphere Dataset (ICOADS) [@SST_Part1; @SST_Part2]. The ONI data is available in text format from [the NOAA Climate Monitoring website](https://www.ncei.noaa.gov/access/monitoring/enso/) [@NOAA_ONI]. The ONI dataset is provided in a space-delimited format.
 
 ```julia
-ofilename = "data/Nino_data.csv"
+ofilename = "data/ONI_data.csv"
 open(ofilename, "w") do io
-    write(io, HTTP.get("https://www.cpc.ncep.noaa.gov/data/indices/sstoi.indices").body)
+    write(io, HTTP.get("https://psl.noaa.gov/data/correlation/oni.data").body)
 end
+lines = readlines(ofilename);
+cleaned_lines = [join(split(strip(line)), ",") for line in lines];
+mask = [count(==(','), line) > 11 for line in cleaned_lines];
+cleaned_lines = cleaned_lines[mask];
 # Convert space-delimited to CSV
-write(ofilename, join([join(split(strip(line)), ",") for line in readlines(ofilename)], "\n"))
-rawoni = CSV.read(ofilename, DataFrame; delim=',', header=1)
-oni = DataFrame(Date=Date.(rawoni.YR, rawoni.MON, 1), Anom=rawoni[!, :ANOM_3])
-CSV.write(ofilename, oni)
+write(ofilename, join(cleaned_lines, "\n"));
+rawoni = CSV.read(ofilename, DataFrame; delim=(','), header=0);
+longoni = longseries(rawoni)[:];
+longoni = longoni[longoni .!= -99.9]; # Remove missing values;
+fechas = Date(1950, 1, 1):Month(1):(Date(1950, 1, 1) + Month(length(longoni)-1));
+oni = DataFrame(Date=fechas, Anom=longoni);
+CSV.write(ofilename, oni);
 ```
 
 ## Merge Datasets {#sec-merge-all-datasets}

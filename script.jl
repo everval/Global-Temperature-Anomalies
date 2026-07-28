@@ -94,7 +94,7 @@ last(gistemp, 5) # Show the first 5 rows of the GISTEMP data;
 # ---- Chunk 5 ----
 # Download the NOAAGlobalTemp temperature data 
 # URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
-nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202605.asc";
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202606.asc";
 # Local filename to save
 nfilename = "data/NOAA_global_monthly_average.csv";
 
@@ -256,8 +256,8 @@ last(era5, 5) # Show the first 5 rows of the ERA5 data;
 
 # ---- Chunk 16 ----
 # Download the ONI data
-ourl = "https://www.cpc.ncep.noaa.gov/data/indices/sstoi.indices";
-ofilename = "data/Nino_data.csv";
+ourl = "https://psl.noaa.gov/data/correlation/oni.data";
+ofilename = "data/ONI_data.csv";
 
 open(ofilename, "w") do io
     write(io, HTTP.get(ourl).body);
@@ -266,13 +266,19 @@ end;
 lines = readlines(ofilename);
 cleaned_lines = [join(split(strip(line)), ",") for line in lines];
 
+mask = [count(==(','), line) > 11 for line in cleaned_lines];
+cleaned_lines = cleaned_lines[mask];
+
 # Write to file
 write(ofilename, join(cleaned_lines, "\n"));
 
-rawoni = CSV.read(ofilename, DataFrame; delim=(','), header=1);
-fechas = Date.(rawoni.YR, rawoni.MON, 1) # Create Date column from YR and MON;
+rawoni = CSV.read(ofilename, DataFrame; delim=(','), header=0);
+longoni = longseries(rawoni)[:];
+longoni = longoni[longoni .!= -99.9]; # Remove missing values;
 
-oni = DataFrame(Date=fechas, Anom=rawoni[!, :ANOM_3]);
+fechas = Date(1950, 1, 1):Month(1):(Date(1950, 1, 1) + Month(length(longoni)-1));
+
+oni = DataFrame(Date=fechas, Anom=longoni);
 
 CSV.write(ofilename, oni);
 
@@ -285,7 +291,7 @@ gfilename = "data/GISTEMP_global_monthly_average.csv";
 nfilename = "data/NOAA_global_monthly_average.csv";
 bfilename = "data/BerkeleyEarth_global_monthly_average.csv";
 erafilename = "data/ERA5_global_monthly_average.csv";
-ofilename = "data/Nino_data.csv";
+ofilename = "data/ONI_data.csv";
 
 hadcrut = CSV.read(hfilename, DataFrame);
 gistemp = CSV.read(gfilename, DataFrame);
