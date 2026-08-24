@@ -94,7 +94,7 @@ last(gistemp, 5) # Show the first 5 rows of the GISTEMP data;
 # ---- Chunk 5 ----
 # Download the NOAAGlobalTemp temperature data 
 # URL of the NOAAGlobalTemp global monthly average CSV ---yearmonth.asc
-nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202606.asc";
+nurl = "https://www.ncei.noaa.gov/data/noaa-global-surface-temperature/v6.1/access/timeseries/aravg.mon.land_ocean.90S.90N.v6.1.0.202607.asc";
 # Local filename to save
 nfilename = "data/NOAA_global_monthly_average.csv";
 
